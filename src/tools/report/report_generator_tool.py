@@ -98,6 +98,38 @@ Analyze the above content and generate a comprehensive IT report following the E
 - strategic_summary must include: overview, key_takeaways, business_implications, next_steps_summary
 - key_findings must include: root_cause, key_events, affected_systems
 
+📊 **OPTIONAL - Metrics & Charts (Only if numerical data exists):**
+If the content contains numerical data, trends, or metrics, include a "metrics" field:
+
+"metrics": {{
+    "charts": [
+        {{
+            "id": "unique-chart-id",
+            "title": "Chart Title",
+            "chartType": "line|bar|pie|doughnut|radar",
+            "data": {{
+                "labels": ["Label1", "Label2", ...],
+                "datasets": [
+                    {{
+                        "label": "Dataset Name",
+                        "values": [value1, value2, ...]
+                    }}
+                ]
+            }}
+        }}
+    ]
+}}
+
+Chart Type Guidelines:
+- "line": Time series, trends over time
+- "bar": Comparisons between categories
+- "pie": Percentage distribution, composition
+- "doughnut": Similar to pie, modern look
+- "radar": Multi-dimensional comparisons
+
+⚠️ CRITICAL: Only include "metrics" if numerical data exists in the content.
+If no numerical data, omit this field entirely.
+
 After you return the JSON, You must call build_report_from_json tool and create HTML report.
 
 🚀 Generate the JSON now:"""

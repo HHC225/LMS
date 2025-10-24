@@ -12,8 +12,9 @@ The Report Generator tool converts unstructured IT content into professional, st
 - **Structured Analysis**: AI-powered content analysis with severity assessment
 - **Professional Output**: Beautiful HTML reports with glassmorphism design
 - **Executive Summaries**: Key takeaways for leadership and stakeholders
-- **Action Tracking**: Prioritized action items with assignees and deadlines
-- **Self-Contained**: HTML files include all CSS/JS (no external dependencies)
+- **Visual Analytics**: Optional interactive charts for numerical data (line, bar, pie, doughnut, radar)
+- **Dynamic Rendering**: Charts automatically rendered only when metrics data is present
+- **Self-Contained**: HTML files include all CSS/JS with Chart.js for visualizations
 
 ## 🎯 Use Cases
 
@@ -111,11 +112,31 @@ After calling `generate_report`, the LLM must respond with a JSON object followi
   "metadata": {
     "reported_date": "When the event was first reported or detected (ISO 8601 format)",
     "tags": ["relevant", "tags", "for", "categorization"]
+  },
+  "metrics": {
+    "charts": [
+      {
+        "id": "unique-chart-id",
+        "title": "Chart Title",
+        "chartType": "line",
+        "data": {
+          "labels": ["Label1", "Label2", "Label3"],
+          "datasets": [
+            {
+              "label": "Dataset Name",
+              "values": [10, 20, 30]
+            }
+          ]
+        }
+      }
+    ]
   }
 }
 ```
 
-**Note**: The LLM automatically calls `build_report_from_json` after generating this JSON.
+**Note**: 
+- The `metrics` field is **OPTIONAL** and should only be included when numerical data exists
+- The LLM automatically calls `build_report_from_json` after generating this JSON
 
 ### Step 3: HTML Report Auto-Generated
 
@@ -180,6 +201,75 @@ Report metadata with two sub-fields:
 - `reported_date` (string): When reported or detected (ISO 8601 format preferred)
 - `tags` (array of strings): Categorization tags
 
+#### `metrics` (object) - OPTIONAL
+Visual data representation with charts. Only include when numerical data exists in the content.
+
+**Sub-fields**:
+- `charts` (array of objects): Array of chart configurations
+
+**Chart Configuration**:
+- `id` (string): Unique identifier for the chart
+- `title` (string): Chart title
+- `chartType` (string): Chart type - `"line"`, `"bar"`, `"pie"`, `"doughnut"`, or `"radar"`
+- `data` (object):
+  - `labels` (array of strings): X-axis labels or category names
+  - `datasets` (array of objects): Data series
+    - `label` (string): Dataset name
+    - `values` (array of numbers): Data points
+
+**Chart Type Guidelines**:
+- **line**: Time series data, trends over time (e.g., response times, uptime)
+- **bar**: Comparisons between categories (e.g., incidents by type, monthly metrics)
+- **pie**: Percentage distribution (e.g., resource allocation, incident distribution)
+- **doughnut**: Similar to pie chart with modern appearance
+- **radar**: Multi-dimensional comparisons
+
+**When to Include Metrics**:
+- ✅ Performance data (response times, throughput, latency)
+- ✅ Incident statistics (counts, distributions, trends)
+- ✅ Resource usage (CPU, memory, storage percentages)
+- ✅ Time series data (daily/weekly/monthly trends)
+- ❌ Pure text content without numerical data
+- ❌ Single data points (use text description instead)
+
+**Example with Multiple Charts**:
+```json
+{
+  "metrics": {
+    "charts": [
+      {
+        "id": "response-time-trend",
+        "title": "API Response Time (Last 7 Days)",
+        "chartType": "line",
+        "data": {
+          "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+          "datasets": [
+            {
+              "label": "Response Time (ms)",
+              "values": [120, 135, 150, 145, 140, 130, 125]
+            }
+          ]
+        }
+      },
+      {
+        "id": "error-distribution",
+        "title": "Error Distribution by Type",
+        "chartType": "pie",
+        "data": {
+          "labels": ["Connection Timeout", "500 Error", "Rate Limit", "Other"],
+          "datasets": [
+            {
+              "label": "Errors",
+              "values": [45, 30, 15, 10]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## 🎨 Report Output
 
 ### HTML Report Features
@@ -199,7 +289,17 @@ Generated reports include:
 1. **Header**: Title, severity badge, report type
 2. **Strategic Summary**: Overview, key takeaways, business implications, next steps
 3. **Key Findings**: Root cause, key events timeline, affected systems
-4. **Metadata**: Reported date, categorization tags
+4. **Metrics & Analytics** (optional): Interactive charts visualizing numerical data
+5. **Metadata**: Reported date, categorization tags
+
+### Chart Visualization
+
+When metrics are included, reports feature:
+- **Interactive Charts**: Powered by Chart.js for smooth animations
+- **Dark Theme**: Charts styled to match the report's dark glassmorphism design
+- **Responsive Layout**: Charts adapt to screen size automatically
+- **Multiple Chart Types**: Support for line, bar, pie, doughnut, and radar charts
+- **Color-Coded Data**: Distinct colors for easy data differentiation
 
 ### File Location
 
@@ -342,6 +442,112 @@ export REPORT_VALIDATE_JSON=false
 - Key findings: 3 exposed API keys, missing rate limiting, vulnerable dependencies
 - Business implications: Potential data breach, API abuse risk
 - Affected systems: Authentication service, public APIs, third-party integrations
+
+### Example 4: Performance Report with Metrics
+
+**Input**:
+```json
+{
+  "input_data": {
+    "content": "Q4 performance summary: Database response times averaged 145ms (up from 120ms in Q3). API throughput: 1200 req/s peak, 800 req/s average. Resource usage: CPU 65%, Memory 72%, Storage 58%. Incident breakdown: 5 network issues, 3 database slowdowns, 2 application errors.",
+    "source_type": "investigation",
+    "context": "Quarterly performance review for Q4 2025"
+  }
+}
+```
+
+**Generated Report**: Performance analysis with:
+- Strategic summary of Q4 performance trends
+- Key findings: Response time increase, resource utilization patterns
+- Visual charts showing:
+  - Line chart: Response time trend over Q4
+  - Bar chart: Monthly API throughput comparison
+  - Pie chart: Incident distribution by type
+  - Doughnut chart: Resource usage breakdown
+- Business implications: Performance degradation requiring optimization
+- Next steps: Capacity planning and optimization initiatives
+
+**Sample JSON with Metrics**:
+```json
+{
+  "report_title": "Q4 System Performance Analysis",
+  "report_type": "Performance Report",
+  "severity": "medium",
+  "strategic_summary": {
+    "overview": "Q4 system performance shows gradual degradation with response times increasing by 20%. Resource utilization remains within acceptable limits at 65-72%.",
+    "key_takeaways": [
+      "Database response times increased from 120ms to 145ms (20% slower)",
+      "API throughput stable at 800 req/s average with 1200 req/s peak capacity",
+      "Network incidents represent 50% of total incidents requiring attention"
+    ],
+    "business_implications": "Performance degradation may impact user experience and requires proactive optimization to prevent service quality decline.",
+    "next_steps_summary": "Conduct database query optimization, implement caching strategy, and enhance network monitoring."
+  },
+  "key_findings": {
+    "root_cause": "Increased database load due to growing data volume without corresponding index optimization",
+    "key_events": [
+      "October: Response time average 125ms",
+      "November: Response time increased to 140ms",
+      "December: Response time reached 145ms"
+    ],
+    "affected_systems": [
+      "Database Server",
+      "API Gateway",
+      "Network Infrastructure"
+    ]
+  },
+  "metadata": {
+    "reported_date": "2025-12-31T10:00:00Z",
+    "tags": ["performance", "quarterly-review", "optimization", "monitoring"]
+  },
+  "metrics": {
+    "charts": [
+      {
+        "id": "response-time-trend",
+        "title": "Monthly Response Time Trend",
+        "chartType": "line",
+        "data": {
+          "labels": ["October", "November", "December"],
+          "datasets": [
+            {
+              "label": "Response Time (ms)",
+              "values": [125, 140, 145]
+            }
+          ]
+        }
+      },
+      {
+        "id": "incident-breakdown",
+        "title": "Q4 Incident Distribution",
+        "chartType": "pie",
+        "data": {
+          "labels": ["Network", "Database", "Application"],
+          "datasets": [
+            {
+              "label": "Incidents",
+              "values": [5, 3, 2]
+            }
+          ]
+        }
+      },
+      {
+        "id": "resource-usage",
+        "title": "Average Resource Utilization",
+        "chartType": "doughnut",
+        "data": {
+          "labels": ["CPU", "Memory", "Storage", "Available"],
+          "datasets": [
+            {
+              "label": "Usage %",
+              "values": [65, 72, 58, 35]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ## 🛠️ Troubleshooting
 

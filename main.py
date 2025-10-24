@@ -113,6 +113,7 @@ if ReasoningConfig.ENABLE_COUNTERFACTUAL_REASONING:
         counterfactual_phase3_step2,
         counterfactual_phase3_step3,
         counterfactual_phase3_step4,
+        counterfactual_phase3_step5,
         counterfactual_phase4,
         counterfactual_get_result,
         counterfactual_reset,
@@ -127,15 +128,16 @@ if ReasoningConfig.ENABLE_COUNTERFACTUAL_REASONING:
     mcp.tool()(counterfactual_phase2)
     # Phase 3 now has 4 separate steps
     mcp.tool()(counterfactual_phase3_step1)
-    mcp.tool()(counterfactual_phase3_step2)
+    mcp.tool()(counterfactual_phase3_step2)    
     mcp.tool()(counterfactual_phase3_step3)
     mcp.tool()(counterfactual_phase3_step4)
+    mcp.tool()(counterfactual_phase3_step5)
     mcp.tool()(counterfactual_phase4)
     mcp.tool()(counterfactual_get_result)
     mcp.tool()(counterfactual_reset)
     mcp.tool()(counterfactual_list_sessions)
     
-    logger.info("Counterfactual Reasoning tools registered successfully (Phase 3 with 4-step process)")
+    logger.info("Counterfactual Reasoning tools registered successfully (Phase 3 with 5-step process)")
 
 
 # ============================================================================

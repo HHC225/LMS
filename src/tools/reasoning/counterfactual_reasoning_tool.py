@@ -5,6 +5,8 @@ with step-by-step Phase 3 execution to prevent token limit issues
 """
 from typing import Dict, Any, Optional
 from fastmcp import Context
+from pathlib import Path
+from datetime import datetime
 import json
 import uuid
 import time
@@ -24,6 +26,44 @@ class CounterfactualInitializeTool(ReasoningTool):
             description="Initialize a new counterfactual reasoning session for analyzing alternative scenarios"
         )
     
+    def _ensure_output_dir(self) -> Path:
+        output_dir = Path("output/counterfactual")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return output_dir
+    
+    def _create_initial_md(self, session_id: str, problem: str) -> Path:
+        """Create initial markdown file"""
+        output_dir = self._ensure_output_dir()
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"counterfactual_{timestamp}.md"
+        filepath = output_dir / filename
+        
+        content = f"""# Counterfactual Reasoning Analysis
+
+**Session ID:** {session_id}
+**Created:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+
+---
+
+## Problem Statement
+
+{problem}
+
+---
+
+## Analysis Progress
+
+- [ ] Phase 1: Actual State Analysis
+- [ ] Phase 2: Counterfactual Scenario Generation
+- [ ] Phase 3: Deep Reasoning Analysis
+- [ ] Phase 4: Comparative Analysis
+
+---
+
+"""
+        filepath.write_text(content, encoding="utf-8")
+        return filepath
+    
     async def execute(
         self,
         problem: str,
@@ -36,21 +76,28 @@ class CounterfactualInitializeTool(ReasoningTool):
         random_suffix = str(uuid.uuid4())[:8]
         session_id = f"cf_{timestamp}_{random_suffix}"
         
+        # Create initial markdown file
+        md_filepath = self._create_initial_md(session_id, problem)
+        
         counterfactual_sessions[session_id] = {
             "session_id": session_id,
             "problem": problem,
+            "md_filepath": str(md_filepath),
             "phase": "initialized",
             "phase1_result": None,
             "phase2_scenarios": None,
-            "phase3_progress": {  # Track Phase 3 step-by-step progress
-                "current_step": 0,  # 0=not started, 1-4=steps completed
+            "selected_type": None,
+            "analyzed_types": [],  # Track analyzed types in order
+            "phase3_progress": {
+                "current_step": 0,
                 "step1_principles": None,
                 "step2_level1": None,
-                "step3_levels": None,  # level2 + level3
-                "step4_complete": None  # level4 + outcomes
+                "step3_level2": None,
+                "step4_level3": None,
+                "step5_level4": None
             },
-            "phase3_result": None,  # Single result object after Phase 3 completion
-            "phase4_result": None,  # Single result object after Phase 4 completion
+            "phase3_result": None,
+            "phase4_results": {},
             "created_at": time.time(),
             "updated_at": time.time(),
             "history": [{
@@ -66,15 +113,16 @@ class CounterfactualInitializeTool(ReasoningTool):
             "status": "initialized",
             "session_id": session_id,
             "problem": problem,
+            "md_file": str(md_filepath),
             "current_phase": "initialized",
             "next_action": "call counterfactual_phase1 to begin Phase 1: Actual State Analysis",
             "workflow": {
                 "phase1": "Actual State Analysis - Understand current state and causal relationships",
-                "phase2": "Counterfactual Scenarios - Create 4 types of alternative scenarios",
-                "phase3": "Reasoning Process (4 Steps) - Deep analysis for each scenario type",
-                "phase4": "Comparison & Insights - Compare all scenarios and extract insights"
+                "phase2": "Counterfactual Scenarios - Create 4 types and select 1 to analyze",
+                "phase3": "Reasoning Process (5 Steps) - Deep analysis for selected scenario type",
+                "phase4": "Comparison & Insights - Compare and extract insights"
             },
-            "message": "Counterfactual Reasoning session initialized. Start with Phase 1 to analyze the actual state."
+            "message": "Counterfactual Reasoning session initialized. Markdown file created. Start with Phase 1 to analyze the actual state."
         }, indent=2, ensure_ascii=False)
 
 
@@ -86,6 +134,50 @@ class CounterfactualPhase1Tool(ReasoningTool):
             name="counterfactual_phase1",
             description="Phase 1: Analyze actual state and identify causal relationships"
         )
+    
+    def _update_md_phase1(self, session: Dict[str, Any], analysis: Dict[str, Any]):
+        """Update markdown file with Phase 1 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        phase1_content = f"""## Phase 1: Actual State Analysis
+
+### Current State
+
+**What Happened:**
+{analysis.get("current_state", {}).get("what_happened", "N/A")}
+
+**Existing Conditions:**
+{self._format_list(analysis.get("current_state", {}).get("existing_conditions", []))}
+
+**Outcomes:**
+{self._format_list(analysis.get("current_state", {}).get("outcomes", []))}
+
+### Causal Chain
+
+**Root Causes:**
+{self._format_list(analysis.get("causal_chain", {}).get("root_causes", []))}
+
+**Intermediate Processes:**
+{self._format_list(analysis.get("causal_chain", {}).get("intermediate_processes", []))}
+
+**Final Results:**
+{self._format_list(analysis.get("causal_chain", {}).get("final_results", []))}
+
+---
+
+"""
+        # Update checkbox
+        content = content.replace("- [ ] Phase 1: Actual State Analysis", "- [x] Phase 1: Actual State Analysis")
+        # Append Phase 1 content
+        content += phase1_content
+        
+        filepath.write_text(content, encoding="utf-8")
+    
+    def _format_list(self, items: list) -> str:
+        if not items:
+            return "- None"
+        return "\n".join([f"- {item}" for item in items])
     
     async def execute(
         self,
@@ -125,42 +217,125 @@ class CounterfactualPhase1Tool(ReasoningTool):
             "analysis": analysis
         })
         
+        # Update markdown file
+        self._update_md_phase1(session, analysis)
+        
         await self.log_execution(ctx, f"Completed Phase 1 for session {session_id}")
         
         return json.dumps({
             "status": "phase1_complete",
             "session_id": session_id,
-            "phase1_result": analysis,
+            "md_file": session["md_filepath"],
             "next_action": "call counterfactual_phase2 to generate 4 counterfactual scenarios",
-            "message": "Phase 1 Complete: Actual state analyzed. Proceed to Phase 2 to generate counterfactual scenarios."
+            "message": "✅ Phase 1 Complete: Actual state analyzed.\n\nMarkdown file updated with Phase 1 results.\n\n🔄 Next: Phase 2 - Generate 4 counterfactual scenarios and select ONE type for analysis."
         }, indent=2, ensure_ascii=False)
 
 
 class CounterfactualPhase2Tool(ReasoningTool):
-    """Phase 2: Counterfactual Scenario Generation - STOPS and waits for user selection"""
+    """Phase 2: Counterfactual Scenario Generation - Generate 4 scenarios and select 1"""
     
     def __init__(self):
         super().__init__(
             name="counterfactual_phase2",
-            description="Phase 2: Generate 4 scenario types, display them to user, and WAIT for user to select which type to analyze. DO NOT proceed to Phase 3 automatically."
+            description="Phase 2: Generate 4 scenario types and select ONE type to analyze in Phase 3"
         )
+    
+    def _update_md_phase2(self, session: Dict[str, Any], scenarios: Dict[str, Any], selected_type: str):
+        """Update markdown file with Phase 2 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        type_names = {
+            "diagnostic": "Diagnostic (Root Cause Identification)",
+            "predictive": "Predictive (Future Prediction)",
+            "preventive": "Preventive (Risk Prevention)",
+            "optimization": "Optimization (Improvement Exploration)"
+        }
+        
+        analyzed_types = session.get("analyzed_types", [])
+        
+        # For first call, create new Phase 2 section with type-specific subsections
+        # For subsequent calls, update existing section
+        if "## Phase 2: Counterfactual Scenario Generation" not in content:
+            phase2_content = f"""## Phase 2: Counterfactual Scenario Generation
+
+"""
+            
+            for type_key, type_name in type_names.items():
+                scenario = scenarios.get(type_key, {})
+                # Show ✓ for analyzed types, → for current selection, space for future
+                if type_key in analyzed_types:
+                    marker = "✓"
+                elif type_key == selected_type:
+                    marker = "→"
+                else:
+                    marker = " "
+                    
+                phase2_content += f"""### [{marker}] {type_name}
+
+**Changed Condition:**
+{scenario.get('changed_condition', 'N/A')}
+
+**Counterfactual Scenario:**
+{scenario.get('counterfactual_scenario', 'N/A')}
+
+**Logical Consistency:**
+{scenario.get('logical_consistency', 'N/A')}
+
+"""
+                
+                # Add placeholder sections for Phase 3 & 4 (will be filled during analysis)
+                phase2_content += f"""<!-- PHASE3_{type_key.upper()}_START -->
+<!-- PHASE3_{type_key.upper()}_END -->
+
+<!-- PHASE4_{type_key.upper()}_START -->
+<!-- PHASE4_{type_key.upper()}_END -->
+
+---
+
+"""
+            
+            # Update checkbox
+            content = content.replace("- [ ] Phase 2: Counterfactual Scenario Generation", "- [x] Phase 2: Counterfactual Scenario Generation")
+            # Append Phase 2 content
+            content += phase2_content
+        else:
+            # Update markers in existing Phase 2 section
+            for type_key, type_name in type_names.items():
+                # Update markers based on current state
+                if type_key in analyzed_types:
+                    # Change to completed marker
+                    old_marker_patterns = [f"### [ ] {type_name}", f"### [\u2192] {type_name}"]
+                    for pattern in old_marker_patterns:
+                        if pattern in content:
+                            content = content.replace(pattern, f"### [\u2713] {type_name}")
+                elif type_key == selected_type:
+                    # Change to current marker
+                    old_marker = f"### [ ] {type_name}"
+                    if old_marker in content:
+                        content = content.replace(old_marker, f"### [\u2192] {type_name}")
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
         session_id: str,
         scenarios: Dict[str, Any],
+        selected_type: Optional[str] = None,
         ctx: Optional[Context] = None
     ) -> str:
-        """Execute Phase 2: Generate counterfactual scenarios"""
+        """Execute Phase 2: Generate counterfactual scenarios and select one type"""
         
         if session_id not in counterfactual_sessions:
             return json.dumps({"error": "Session not found. Call counterfactual_initialize first."}, ensure_ascii=False)
         
         session = counterfactual_sessions[session_id]
         
-        if session["phase"] != "phase1_complete":
+        # Allow Phase 2 to be called after phase1_complete OR after phase4_complete (for next type)
+        valid_phases = ["phase1_complete", "completed"]
+        if session["phase"] not in valid_phases:
             return json.dumps({
-                "error": "Phase 1 must be completed first.",
+                "error": f"Phase 2 can only be called after Phase 1 or Phase 4 completion.",
                 "current_phase": session["phase"]
             }, ensure_ascii=False)
         
@@ -173,20 +348,48 @@ class CounterfactualPhase2Tool(ReasoningTool):
                 "required_types": required_types
             }, ensure_ascii=False)
         
-        # Store Phase 2 scenarios
+        # Auto-select next type in sequence if not provided
+        if selected_type is None:
+            # Sequential order: diagnostic -> predictive -> preventive -> optimization
+            type_order = ["diagnostic", "predictive", "preventive", "optimization"]
+            analyzed_types = session.get("analyzed_types", [])
+            
+            # Find first unanalyzed type
+            for t in type_order:
+                if t not in analyzed_types:
+                    selected_type = t
+                    break
+            
+            if selected_type is None:
+                return json.dumps({
+                    "error": "All types have been analyzed.",
+                    "analyzed_types": analyzed_types
+                }, ensure_ascii=False)
+        else:
+            # Validate selected_type if provided
+            if selected_type not in required_types:
+                return json.dumps({
+                    "error": f"Invalid selected_type: {selected_type}",
+                    "valid_types": required_types
+                }, ensure_ascii=False)
+        
+        # Store Phase 2 scenarios and selected type
         session["phase2_scenarios"] = scenarios
+        session["selected_type"] = selected_type
         session["phase"] = "phase2_complete"
         session["updated_at"] = time.time()
         session["history"].append({
             "action": "phase2_complete",
             "timestamp": time.time(),
-            "scenarios": scenarios
+            "scenarios": scenarios,
+            "selected_type": selected_type
         })
         
-        await self.log_execution(ctx, f"Completed Phase 2 for session {session_id} with 4 scenario types")
+        # Update markdown file
+        self._update_md_phase2(session, scenarios, selected_type)
         
-        # Format scenario summaries
-        scenario_summaries = []
+        await self.log_execution(ctx, f"Completed Phase 2 for session {session_id}, selected type: {selected_type}")
+        
         type_names = {
             "diagnostic": "Diagnostic (Root Cause Identification)",
             "predictive": "Predictive (Future Prediction)",
@@ -194,67 +397,39 @@ class CounterfactualPhase2Tool(ReasoningTool):
             "optimization": "Optimization (Improvement Exploration)"
         }
         
-        for idx, (type_key, type_name) in enumerate(type_names.items(), 1):
-            scenario = scenarios.get(type_key, {})
-            summary = f"\n{idx}. **{type_name}**\n"
-            summary += f"   - Changed Condition: {scenario.get('changed_condition', 'N/A')}\n"
-            summary += f"   - Scenario: {scenario.get('counterfactual_scenario', 'N/A')[:150]}...\n"
-            scenario_summaries.append(summary)
-        
-        selection_message = "".join(scenario_summaries)
-        
-        phase1_data = session.get("phase1_result")
-        
         return json.dumps({
             "status": "phase2_complete",
             "session_id": session_id,
-            "phase": "phase2_complete",
-            "scenarios_created": 4,
-            "scenarios": {
-                "diagnostic": scenarios["diagnostic"],
-                "predictive": scenarios["predictive"],
-                "preventive": scenarios["preventive"],
-                "optimization": scenarios["optimization"]
-            },
-            "message": f"""✅ Phase 2 Complete - 4 Counterfactual Scenarios Generated
+            "selected_type": selected_type,
+            "md_file": session["md_filepath"],
+            "next_action": "call_counterfactual_phase3_step1",
+            "message": f"""✅ Phase 2 Complete - 4 Scenarios Generated, Type Selected
 
-{selection_message}
+**Selected for Analysis:** {type_names[selected_type]}
+
+Markdown file updated with all scenarios and selected type.
 
 ---
 
-🔄 **Proceeding to Phase 3: Deep Reasoning Analysis (4 Steps)**
+🔄 **Phase 3: Deep Reasoning Analysis (5 Steps)**
 
-📋 **Context:**
-Phase 1 Actual State:
-{json.dumps(phase1_data, indent=2, ensure_ascii=False)}
+**Step 1/5: Apply 3 Core Principles**
 
-All 4 Scenarios:
-{json.dumps(scenarios, indent=2, ensure_ascii=False)}
-
----
-
-**Step 1/4: Apply 3 Core Principles**
-
-Apply these principles to analyze all scenarios together:
+Apply these principles to the SELECTED scenario:
 
 1. **Minimal Change**: Alter only a small number of conditions
 2. **Causal Consistency**: Maintain logical causal connections  
-3. **Proximity**: Keep the scenarios close to the actual situation
-
-Analyze how each principle applies across all scenarios.
+3. **Proximity**: Keep the scenario close to the actual situation
 
 Call counterfactual_phase3_step1 with:
 {{
     "session_id": "{session_id}",
     "principles_applied": {{
-        "minimal_change": "Explain what minimal changes were made across scenarios...",
+        "minimal_change": "Explain what minimal changes were made...",
         "causal_consistency": "Explain how causal consistency is maintained...",
-        "proximity": "Explain how scenarios stay close to actual..."
+        "proximity": "Explain how scenario stays close to actual..."
     }}
-}}
-
-This is Step 1 of 4. After each step, you'll receive instructions for the next step.""",
-            "next_action": "call_counterfactual_phase3_step1"
+}}"""
         }, indent=2, ensure_ascii=False)
 
 
@@ -266,6 +441,45 @@ class CounterfactualPhase3Step1Tool(ReasoningTool):
             name="counterfactual_phase3_step1",
             description="Phase 3 Step 1: Apply the 3 core principles (Minimal Change, Causal Consistency, Proximity) to the selected counterfactual scenario"
         )
+    
+    def _update_md_step1(self, session: Dict[str, Any], principles: Dict[str, str]):
+        """Update markdown file with Step 1 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        step1_content = f"""#### Phase 3: Deep Reasoning Analysis
+
+**Step 1: Core Principles Application**
+
+**Minimal Change:**
+{principles.get('minimal_change', 'N/A')}
+
+**Causal Consistency:**
+{principles.get('causal_consistency', 'N/A')}
+
+**Proximity:**
+{principles.get('proximity', 'N/A')}
+
+"""
+        
+        # Insert into the type-specific Phase 3 placeholder
+        placeholder_start = f"<!-- PHASE3_{selected_type.upper()}_START -->"
+        placeholder_end = f"<!-- PHASE3_{selected_type.upper()}_END -->"
+        
+        if placeholder_start in content and placeholder_end in content:
+            # Replace the placeholder with actual content
+            content = content.replace(
+                f"{placeholder_start}\n{placeholder_end}",
+                f"{placeholder_start}\n{step1_content}{placeholder_end}"
+            )
+        
+        # Update checkbox (only once)
+        if "- [ ] Phase 3: Deep Reasoning Analysis" in content:
+            content = content.replace("- [ ] Phase 3: Deep Reasoning Analysis", "- [x] Phase 3: Deep Reasoning Analysis")
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
@@ -279,14 +493,23 @@ class CounterfactualPhase3Step1Tool(ReasoningTool):
             return json.dumps({"error": "Session not found."}, ensure_ascii=False)
         
         session = counterfactual_sessions[session_id]
-        progress = session["phase3_progress"]
         
-        # Validate phase
         if session["phase"] != "phase2_complete":
             return json.dumps({
-                "error": "Invalid phase. Must complete Phase 2 first.",
+                "error": "Phase 2 must be completed first.",
                 "current_phase": session["phase"]
             }, ensure_ascii=False)
+        
+        # Reset phase3_progress for new type analysis
+        session["phase3_progress"] = {
+            "current_step": 0,
+            "step1_principles": None,
+            "step2_level1": None,
+            "step3_level2": None,
+            "step4_level3": None,
+            "step5_level4": None
+        }
+        progress = session["phase3_progress"]
         
         # Validate principles_applied structure
         required_keys = ["minimal_change", "causal_consistency", "proximity"]
@@ -294,14 +517,7 @@ class CounterfactualPhase3Step1Tool(ReasoningTool):
         if missing_keys:
             return json.dumps({
                 "error": f"Missing required principles: {missing_keys}",
-                "required_keys": required_keys,
-                "message": """Phase 3 Step 1 requires all 3 principles to be applied:
-                
-                principles_applied = {
-                    "minimal_change": "How you altered minimal conditions...",
-                    "causal_consistency": "How you maintained logical connections...",
-                    "proximity": "How you kept scenario close to actual situation..."
-                }"""
+                "required_keys": required_keys
             }, ensure_ascii=False)
         
         # Store Step 1 result
@@ -315,42 +531,34 @@ class CounterfactualPhase3Step1Tool(ReasoningTool):
             "principles": principles_applied
         })
         
+        # Update markdown file
+        self._update_md_step1(session, principles_applied)
+        
         await self.log_execution(ctx, f"Phase 3 Step 1 complete for session {session_id}")
         
         return json.dumps({
             "status": "phase3_step1_complete",
             "session_id": session_id,
             "current_step": 1,
-            "total_steps": 4,
-            "step1_result": principles_applied,
+            "total_steps": 5,
             "next_action": "call counterfactual_phase3_step2",
             "message": f"""✅ Phase 3 Step 1 Complete - Principles Applied
 
-📋 **Progress:** Step 1/4 completed
+📋 **Progress:** Step 1/5 completed
+Markdown file updated.
 
 🔄 **Next Step:** Phase 3 Step 2 - Direct Impact Analysis (Level 1)
 
-**Instructions for Step 2:**
-Analyze the DIRECT and IMMEDIATE impacts across all counterfactual scenarios.
+**Instructions:**
+Analyze the DIRECT and IMMEDIATE impacts of the selected scenario.
 Focus on first-order effects that happen immediately when conditions change.
 
-**What to analyze:**
-- Immediate technical impacts across all scenarios
-- Direct operational changes
-- First-order consequences
-- Instant observable effects
+⚠️ **IMPORTANT:** Use parameter name "level1_direct" (string type):
 
-**Context from Step 1:**
-Principles Applied: {json.dumps(principles_applied, indent=2, ensure_ascii=False)}
-
-**All Scenarios:**
-{json.dumps(session["phase2_scenarios"], indent=2, ensure_ascii=False)}
-
-Call counterfactual_phase3_step2 with:
-{{
-    "session_id": "{session_id}",
-    "level1_direct": "Your direct impact analysis here..."
-}}"""
+counterfactual_phase3_step2(
+    session_id="{session_id}",
+    level1_direct="Your direct impact analysis here..."
+)"""
         }, indent=2, ensure_ascii=False)
 
 
@@ -362,6 +570,31 @@ class CounterfactualPhase3Step2Tool(ReasoningTool):
             name="counterfactual_phase3_step2",
             description="Phase 3 Step 2: Analyze direct and immediate impacts (Reasoning Depth Level 1)"
         )
+    
+    def _update_md_step2(self, session: Dict[str, Any], level1: str):
+        """Update markdown file with Step 2 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        step2_content = f"""**Step 2: Direct Impact Analysis (Level 1)**
+
+{level1}
+
+"""
+        
+        # Append to the type-specific Phase 3 section
+        placeholder_end = f"<!-- PHASE3_{selected_type.upper()}_END -->"
+        
+        if placeholder_end in content:
+            # Insert before the end placeholder
+            content = content.replace(
+                placeholder_end,
+                f"{step2_content}{placeholder_end}"
+            )
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
@@ -395,71 +628,205 @@ class CounterfactualPhase3Step2Tool(ReasoningTool):
             "level1": level1_direct
         })
         
+        # Update markdown file
+        self._update_md_step2(session, level1_direct)
+        
         await self.log_execution(ctx, f"Phase 3 Step 2 complete for session {session_id}")
         
         return json.dumps({
             "status": "phase3_step2_complete",
             "session_id": session_id,
             "current_step": 2,
-            "total_steps": 4,
-            "step2_result": level1_direct,
+            "total_steps": 5,
             "next_action": "call counterfactual_phase3_step3",
             "message": f"""✅ Phase 3 Step 2 Complete - Direct Impact Analyzed
 
-📋 **Progress:** Step 2/4 completed
+📋 **Progress:** Step 2/5 completed
+Markdown file updated.
 
-🔄 **Next Step:** Phase 3 Step 3 - Ripple Effects & Multidimensional Analysis (Levels 2 & 3)
+🔄 **Next Step:** Phase 3 Step 3 - Ripple Effects Analysis (Level 2)
 
-**Instructions for Step 3:**
-Analyze RIPPLE EFFECTS and MULTIDIMENSIONAL impacts across all scenarios.
-
-**Level 2 - Ripple Effects:**
+**Instructions:**
+Analyze RIPPLE EFFECTS (Level 2):
 - Secondary consequences that cascade from direct impacts
 - How changes spread to related systems
 - Interconnected effects
+- Chain reactions
 
-**Level 3 - Multidimensional Analysis:**
-Analyze impacts across 4 dimensions:
-1. **Technical:** System architecture, code, infrastructure changes
-2. **Organizational:** Team structure, processes, workflows
-3. **Cultural:** Team dynamics, communication, decision-making
-4. **External:** Customer impact, market, partnerships
+⚠️ **IMPORTANT:** Use parameter name "level2_ripple" (string type):
 
-**Previous Context:**
-Step 1 Principles: {json.dumps(progress["step1_principles"], indent=2, ensure_ascii=False)}
-Step 2 Direct Impact: {level1_direct[:200]}...
-
-Call counterfactual_phase3_step3 with:
-{{
-    "session_id": "{session_id}",
-    "level2_ripple": "Ripple effects analysis...",
-    "level3_multidimensional": {{
-        "technical": "Technical dimension analysis...",
-        "organizational": "Organizational dimension analysis...",
-        "cultural": "Cultural dimension analysis...",
-        "external": "External dimension analysis..."
-    }}
-}}"""
+counterfactual_phase3_step3(
+    session_id="{session_id}",
+    level2_ripple="Ripple effects analysis..."
+)"""
         }, indent=2, ensure_ascii=False)
 
 
 class CounterfactualPhase3Step3Tool(ReasoningTool):
-    """Phase 3 Step 3: Ripple Effects & Multidimensional Analysis (Levels 2 & 3)"""
+    """Phase 3 Step 3: Ripple Effects Analysis (Level 2)"""
     
     def __init__(self):
         super().__init__(
             name="counterfactual_phase3_step3",
-            description="Phase 3 Step 3: Analyze ripple effects and multidimensional impacts (Reasoning Depth Levels 2 & 3)"
+            description="Phase 3 Step 3: Analyze ripple effects (Reasoning Depth Level 2)"
         )
+    
+    def _update_md_step3(self, session: Dict[str, Any], level2: str):
+        """Update markdown file with Step 3 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        step3_content = f"""**Step 3: Ripple Effects Analysis (Level 2)**
+
+{level2}
+
+"""
+        
+        # Append to the type-specific Phase 3 section
+        placeholder_end = f"<!-- PHASE3_{selected_type.upper()}_END -->"
+        
+        if placeholder_end in content:
+            # Insert before the end placeholder
+            content = content.replace(
+                placeholder_end,
+                f"{step3_content}{placeholder_end}"
+            )
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
         session_id: str,
         level2_ripple: str,
+        ctx: Optional[Context] = None
+    ) -> str:
+        """Execute Phase 3 Step 3: Ripple effects analysis"""
+        
+        print(f"\n[DEBUG] CounterfactualPhase3Step3Tool.execute called")
+        print(f"  - session_id: {session_id}")
+        print(f"  - level2_ripple type: {type(level2_ripple)}")
+        print(f"  - level2_ripple value: {level2_ripple[:100] if isinstance(level2_ripple, str) else level2_ripple}...")
+        
+        if session_id not in counterfactual_sessions:
+            return json.dumps({"error": "Session not found."}, ensure_ascii=False)
+        
+        session = counterfactual_sessions[session_id]
+        progress = session["phase3_progress"]
+        
+        print(f"[DEBUG] Session found, current_step: {progress['current_step']}")
+        
+        # Validate step progression
+        if progress["current_step"] != 2:
+            return json.dumps({
+                "error": "Must complete Step 2 before Step 3",
+                "current_step": progress["current_step"]
+            }, ensure_ascii=False)
+        
+        # Store Step 3 result
+        progress["step3_level2"] = level2_ripple
+        progress["current_step"] = 3
+        session["updated_at"] = time.time()
+        session["history"].append({
+            "action": "phase3_step3_complete",
+            "timestamp": time.time(),
+            "level2": level2_ripple
+        })
+        
+        session["phase"] = "phase3_step3_complete"
+        
+        # Update markdown file
+        self._update_md_step3(session, level2_ripple)
+        
+        await self.log_execution(ctx, f"Phase 3 Step 3 complete for session {session_id}")
+        
+        return json.dumps({
+            "status": "phase3_step3_complete",
+            "session_id": session_id,
+            "current_step": 3,
+            "total_steps": 5,
+            "next_action": "call counterfactual_phase3_step4",
+            "message": f"""✅ Phase 3 Step 3 Complete - Ripple Effects Analyzed
+
+📋 **Progress:** Step 3/5 completed
+Markdown file updated.
+
+🔄 **Next Step:** Phase 3 Step 4 - Multidimensional Analysis (Level 3)
+
+**Instructions:**
+Analyze impacts across 4 dimensions:
+
+1. **Technical:** System architecture, code, infrastructure changes
+2. **Organizational:** Team structure, processes, workflows
+3. **Cultural:** Team dynamics, communication, decision-making
+4. **External:** Customer impact, market, partnerships
+
+⚠️ **IMPORTANT:** Call counterfactual_phase3_step4 (NOT step3!) with parameter name "level3_multidimensional":
+
+counterfactual_phase3_step4(
+    session_id="{session_id}",
+    level3_multidimensional={{
+        "technical": "Technical dimension analysis...",
+        "organizational": "Organizational dimension analysis...",
+        "cultural": "Cultural dimension analysis...",
+        "external": "External dimension analysis..."
+    }}
+)"""
+        }, indent=2, ensure_ascii=False)
+
+
+class CounterfactualPhase3Step4Tool(ReasoningTool):
+    """Phase 3 Step 4: Multidimensional Analysis (Level 3)"""
+    
+    def __init__(self):
+        super().__init__(
+            name="counterfactual_phase3_step4",
+            description="Phase 3 Step 4: Analyze multidimensional impacts (Reasoning Depth Level 3)"
+        )
+    
+    def _update_md_step4(self, session: Dict[str, Any], level3: Dict[str, str]):
+        """Update markdown file with Step 4 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        step4_content = f"""**Step 4: Multidimensional Analysis (Level 3)**
+
+**Technical Dimension:**
+{level3.get('technical', 'N/A')}
+
+**Organizational Dimension:**
+{level3.get('organizational', 'N/A')}
+
+**Cultural Dimension:**
+{level3.get('cultural', 'N/A')}
+
+**External Dimension:**
+{level3.get('external', 'N/A')}
+
+"""
+        
+        # Append to the type-specific Phase 3 section
+        placeholder_end = f"<!-- PHASE3_{selected_type.upper()}_END -->"
+        
+        if placeholder_end in content:
+            # Insert before the end placeholder
+            content = content.replace(
+                placeholder_end,
+                f"{step4_content}{placeholder_end}"
+            )
+        
+        filepath.write_text(content, encoding="utf-8")
+    
+    async def execute(
+        self,
+        session_id: str,
         level3_multidimensional: Dict[str, str],
         ctx: Optional[Context] = None
     ) -> str:
-        """Execute Phase 3 Step 3: Ripple and multidimensional analysis"""
+        """Execute Phase 3 Step 4: Multidimensional analysis"""
         
         if session_id not in counterfactual_sessions:
             return json.dumps({"error": "Session not found."}, ensure_ascii=False)
@@ -468,9 +835,9 @@ class CounterfactualPhase3Step3Tool(ReasoningTool):
         progress = session["phase3_progress"]
         
         # Validate step progression
-        if progress["current_step"] != 2:
+        if progress["current_step"] != 3:
             return json.dumps({
-                "error": "Must complete Step 2 before Step 3",
+                "error": "Must complete Step 3 before Step 4",
                 "current_step": progress["current_step"]
             }, ensure_ascii=False)
         
@@ -483,43 +850,40 @@ class CounterfactualPhase3Step3Tool(ReasoningTool):
                 "required_dimensions": required_dimensions
             }, ensure_ascii=False)
         
-        # Store Step 3 result
-        progress["step3_levels"] = {
-            "level2_ripple": level2_ripple,
-            "level3_multidimensional": level3_multidimensional
-        }
-        progress["current_step"] = 3
+        # Store Step 4 result
+        progress["step4_level3"] = level3_multidimensional
+        progress["current_step"] = 4
         session["updated_at"] = time.time()
         session["history"].append({
-            "action": "phase3_step3_complete",
+            "action": "phase3_step4_complete",
             "timestamp": time.time(),
-            "level2": level2_ripple,
             "level3": level3_multidimensional
         })
         
-        session["phase"] = "phase3_step3_complete"
-        await self.log_execution(ctx, f"Phase 3 Step 3 complete for session {session_id}")
+        session["phase"] = "phase3_step4_complete"
+        
+        # Update markdown file
+        self._update_md_step4(session, level3_multidimensional)
+        
+        await self.log_execution(ctx, f"Phase 3 Step 4 complete for session {session_id}")
         
         return json.dumps({
-            "status": "phase3_step3_complete",
+            "status": "phase3_step4_complete",
             "session_id": session_id,
-            "current_step": 3,
-            "total_steps": 4,
-            "step3_result": {
-                "level2_ripple": level2_ripple,
-                "level3_multidimensional": level3_multidimensional
-            },
-            "next_action": "call counterfactual_phase3_step4",
-            "message": f"""✅ Phase 3 Step 3 Complete - Ripple & Multidimensional Analysis Done
+            "current_step": 4,
+            "total_steps": 5,
+            "next_action": "call counterfactual_phase3_step5",
+            "message": f"""✅ Phase 3 Step 4 Complete - Multidimensional Analysis Done
 
-📋 **Progress:** Step 3/4 completed
+📋 **Progress:** Step 4/5 completed
+Markdown file updated.
 
-🔄 **Next Step:** Phase 3 Step 4 (Final) - Long-term Evolution & Outcome Scenarios
+🔄 **Next Step:** Phase 3 Step 5 (FINAL) - Long-term Evolution & Outcome Scenarios
 
-**Instructions for Step 4:**
+**Instructions:**
+Analyze long-term evolution and generate outcome scenarios:
 
-**Level 4 - Long-term Evolution:**
-Analyze how all scenarios evolve over time:
+**Long-term Evolution:**
 - **Timeline:** 3-6-12 month projection
 - **Sustained Benefits:** What advantages persist long-term?
 - **New Challenges:** What problems emerge over time?
@@ -531,39 +895,74 @@ Project 3 possible futures:
 2. **Worst Case:** Problems compound negatively
 3. **Most Likely:** Realistic balanced projection
 
-**Complete Reasoning Context:**
-Step 1: {json.dumps(progress["step1_principles"], indent=2, ensure_ascii=False)}
-Step 2: {progress["step2_level1"][:150]}...
-Step 3: Ripple & Multidimensional (just completed)
+⚠️ **IMPORTANT:** Call counterfactual_phase3_step5 (step5!) with two dict parameters:
 
-Call counterfactual_phase3_step4 with:
-{{
-    "session_id": "{session_id}",
-    "level4_longterm": {{
+counterfactual_phase3_step5(
+    session_id="{session_id}",
+    level4_longterm={{
         "timeline": "Timeline projection...",
         "sustained_benefits": "Long-term benefits...",
         "new_challenges": "Emerging challenges...",
         "evolution": "How situation evolves..."
     }},
-    "outcome_scenarios": {{
+    outcome_scenarios={{
         "best_case": "Optimal outcome...",
         "worst_case": "Negative outcome...",
         "most_likely": "Realistic outcome..."
     }}
-}}
-
-This is the FINAL step of Phase 3. After completion, Phase 4 instructions will be provided automatically."""
+)"""
         }, indent=2, ensure_ascii=False)
 
 
-class CounterfactualPhase3Step4Tool(ReasoningTool):
-    """Phase 3 Step 4: Long-term Evolution & Outcome Scenarios (Level 4) - Auto-triggers Phase 4"""
+class CounterfactualPhase3Step5Tool(ReasoningTool):
+    """Phase 3 Step 5: Long-term Evolution & Outcome Scenarios (Level 4) - FINAL Step"""
     
     def __init__(self):
         super().__init__(
-            name="counterfactual_phase3_step4",
-            description="Phase 3 Step 4: Analyze long-term evolution and generate outcome scenarios (Reasoning Depth Level 4). Completes Phase 3 and automatically provides Phase 4 instructions."
+            name="counterfactual_phase3_step5",
+            description="Phase 3 Step 5: Analyze long-term evolution and outcome scenarios (Level 4). Final step of Phase 3."
         )
+    
+    def _update_md_step5(self, session: Dict[str, Any], level4: Dict[str, str], outcomes: Dict[str, str]):
+        """Update markdown file with Step 5 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        step5_content = f"""**Step 5: Long-term Evolution & Outcome Scenarios (Level 4)**
+
+**Timeline:**
+{level4.get('timeline', 'N/A')}
+
+**Sustained Benefits:**
+{level4.get('sustained_benefits', 'N/A')}
+
+**New Challenges:**
+{level4.get('new_challenges', 'N/A')}
+
+**Evolution:**
+{level4.get('evolution', 'N/A')}
+
+**Outcome Scenarios:**
+
+- **Best Case:** {outcomes.get('best_case', 'N/A')}
+- **Worst Case:** {outcomes.get('worst_case', 'N/A')}
+- **Most Likely:** {outcomes.get('most_likely', 'N/A')}
+
+"""
+        
+        # Append to the type-specific Phase 3 section
+        placeholder_end = f"<!-- PHASE3_{selected_type.upper()}_END -->"
+        
+        if placeholder_end in content:
+            # Insert before the end placeholder
+            content = content.replace(
+                placeholder_end,
+                f"{step5_content}{placeholder_end}"
+            )
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
@@ -572,7 +971,7 @@ class CounterfactualPhase3Step4Tool(ReasoningTool):
         outcome_scenarios: Dict[str, str],
         ctx: Optional[Context] = None
     ) -> str:
-        """Execute Phase 3 Step 4: Long-term and outcomes (FINAL STEP)"""
+        """Execute Phase 3 Step 5: Long-term evolution and outcomes"""
         
         if session_id not in counterfactual_sessions:
             return json.dumps({"error": "Session not found."}, ensure_ascii=False)
@@ -581,9 +980,9 @@ class CounterfactualPhase3Step4Tool(ReasoningTool):
         progress = session["phase3_progress"]
         
         # Validate step progression
-        if progress["current_step"] != 3:
+        if progress["current_step"] != 4:
             return json.dumps({
-                "error": "Must complete Step 3 before Step 4",
+                "error": "Must complete Step 4 before Step 5",
                 "current_step": progress["current_step"]
             }, ensure_ascii=False)
         
@@ -605,20 +1004,20 @@ class CounterfactualPhase3Step4Tool(ReasoningTool):
                 "required_outcomes": required_outcomes
             }, ensure_ascii=False)
         
-        # Store Step 4 result
-        progress["step4_complete"] = {
+        # Store Step 5 result
+        progress["step5_level4"] = {
             "level4_longterm": level4_longterm,
             "outcome_scenarios": outcome_scenarios
         }
-        progress["current_step"] = 4
+        progress["current_step"] = 5
         
-        # Assemble complete Phase 3 result from all 4 steps
+        # Assemble complete Phase 3 result from all 5 steps
         complete_phase3_result = {
             "principles_applied": progress["step1_principles"],
             "reasoning_depth": {
                 "level1_direct": progress["step2_level1"],
-                "level2_ripple": progress["step3_levels"]["level2_ripple"],
-                "level3_multidimensional": progress["step3_levels"]["level3_multidimensional"],
+                "level2_ripple": progress["step3_level2"],
+                "level3_multidimensional": progress["step4_level3"],
                 "level4_longterm": level4_longterm
             },
             "outcome_scenarios": outcome_scenarios
@@ -634,121 +1033,376 @@ class CounterfactualPhase3Step4Tool(ReasoningTool):
             "complete_result": complete_phase3_result
         })
         
+        # Update markdown file
+        self._update_md_step5(session, level4_longterm, outcome_scenarios)
+        
         await self.log_execution(ctx, f"Phase 3 complete for session {session_id}")
         
-        phase4_instructions = f"""
-✅ **Phase 3 Complete (All 4 Steps Done)**
+        selected_type = session["selected_type"]
+        
+        return json.dumps({
+            "status": "phase3_complete",
+            "session_id": session_id,
+            "current_step": 5,
+            "total_steps": 5,
+            "next_action": "call counterfactual_phase4",
+            "message": f"""✅ Phase 3 Complete (All 5 Steps Done)
 
-📊 **Complete Phase 3 Analysis Summary:**
+📋 **All Steps Completed**
+Markdown file updated.
 
-**Step 1 - Principles Applied:**
-{json.dumps(progress["step1_principles"], indent=2, ensure_ascii=False)}
+🔄 **Next: Phase 4 - Comparative Analysis**
 
-**Step 2 - Direct Impact:**
-{progress["step2_level1"]}
+For the selected type ({selected_type}), provide comparative analysis:
 
-**Step 3 - Ripple Effects:**
-{progress["step3_levels"]["level2_ripple"]}
-
-**Step 3 - Multidimensional:**
-{json.dumps(progress["step3_levels"]["level3_multidimensional"], indent=2, ensure_ascii=False)}
-
-**Step 4 - Long-term Evolution:**
-{json.dumps(level4_longterm, indent=2, ensure_ascii=False)}
-
-**Step 4 - Outcome Scenarios:**
-{json.dumps(outcome_scenarios, indent=2, ensure_ascii=False)}
-
----
-
-🔄 **Now Proceeding to Phase 4: Comparative Analysis**
-
-**Phase 1 Actual State:**
-{json.dumps(session["phase1_result"], indent=2, ensure_ascii=False)}
-
-**All Phase 2 Scenarios:**
-{json.dumps(session["phase2_scenarios"], indent=2, ensure_ascii=False)}
-
----
-
-**Phase 4 Instructions:**
-
-Compare the actual state (Phase 1) with all counterfactual scenarios and deep analysis (Phase 3) and provide:
-
-## 1. Actual vs Counterfactual Comparison
-- **What Differs:** Key differences between actual and counterfactual scenarios
-- **Why It Differs:** Causal mechanisms behind differences
-- **Magnitude & Importance:** Significance of changes
-
-## 2. Key Insights
-- **Critical Findings:** Most important discoveries across all scenarios
-- **Causal Factors:** Key causal factors and leverage points
-- **Improvement Opportunities:** Actionable improvements
-
-## 3. Action Recommendations
-- **Immediate Actions (0-1 month):** Quick wins
-- **Short-term Plans (1-3 months):** Important improvements
-- **Long-term Initiatives (3-12 months):** Strategic changes
-- **Monitoring & Metrics:** What to track
-
-## 4. Final Summary
-- **Key Takeaway:** Single most important insight
-- **Expected Impact:** Quantified impact
-- **Implementation Timeline:** Realistic timeline
-- **Next Steps:** Concrete actions
-
-**IMPORTANT:** You must select which scenario type to analyze in Phase 4.
-Available types: diagnostic, predictive, preventive, optimization
+1. **Actual vs Counterfactual Comparison**
+2. **Key Insights**
+3. **Action Recommendations**
+4. **Final Summary**
 
 Call counterfactual_phase4 with:
 {{
     "session_id": "{session_id}",
-    "selected_type": "diagnostic",  // or predictive/preventive/optimization
     "comparative_analysis": {{
-        "actual_vs_counterfactual": {{"what_differs": "...", "why_differs": "...", "magnitude_importance": "..."}},
-        "key_insights": {{"critical_findings": [...], "causal_factors": [...], "improvement_opportunities": [...]}},
-        "action_recommendations": {{"immediate_actions": [...], "short_term_plans": [...], "long_term_initiatives": [...], "monitoring_metrics": [...]}},
-        "final_summary": {{"key_takeaway": "...", "expected_impact": "...", "implementation_timeline": "...", "next_steps": [...]}}
+        "actual_vs_counterfactual": {{
+            "what_differs": "...",
+            "why_differs": "...",
+            "magnitude_importance": "..."
+        }},
+        "key_insights": {{
+            "critical_findings": [...],
+            "causal_factors": [...],
+            "improvement_opportunities": [...]
+        }},
+        "action_recommendations": {{
+            "immediate_actions": [...],
+            "short_term_plans": [...],
+            "long_term_initiatives": [...],
+            "monitoring_metrics": [...]
+        }},
+        "final_summary": {{
+            "key_takeaway": "...",
+            "expected_impact": "...",
+            "implementation_timeline": "...",
+            "next_steps": [...]
+        }}
     }}
-}}
-
-After Phase 4 completion, you can analyze additional types by running Phase 3 & 4 again for different types.
-"""
-        
-        return json.dumps({
-            "status": "phase3_all_steps_complete",
-            "session_id": session_id,
-            "steps_completed": 4,
-            "complete_phase3_result": complete_phase3_result,
-            "next_action": "call_counterfactual_phase4",
-            "message": phase4_instructions
+}}"""
         }, indent=2, ensure_ascii=False)
 
 
 class CounterfactualPhase4Tool(ReasoningTool):
-    """Phase 4: Comparative Analysis for Selected Type - checks for remaining types"""
+    """Phase 4: Comparative Analysis"""
     
     def __init__(self):
         super().__init__(
             name="counterfactual_phase4",
-            description="Phase 4: Perform comparative analysis for the selected type. After completion, checks if more types remain and WAITS for user."
+            description="Phase 4: Perform comparative analysis for the selected type"
         )
+    
+    def _format_list(self, items: list) -> str:
+        """Format list items with bullet points"""
+        if not items:
+            return "- None"
+        return "\n".join([f"- {item}" for item in items])
+    
+    def _temp_placeholder_function(self, session: Dict[str, Any]) -> str:
+        """Generate MD file header with Phase 1 and Phase 2 results"""
+        created_time = datetime.fromtimestamp(session["created_at"]).strftime("%Y-%m-%d %H:%M:%S")
+        
+        phase1 = session.get("phase1_result", {})
+        phase2 = session.get("phase2_scenarios", {})
+        
+        # Format Phase 1 current state
+        current_state = phase1.get("current_state", {})
+        current_state_md = f"""### Current State
+
+**What Happened:**
+{current_state.get('what_happened', 'Not specified')}
+
+**Existing Conditions:**
+{self._format_list(current_state.get('existing_conditions', []))}
+
+**Outcomes:**
+{self._format_list(current_state.get('outcomes', []))}
+"""
+        
+        # Format Phase 1 causal chain
+        causal_chain = phase1.get("causal_chain", {})
+        causal_chain_md = f"""### Causal Chain
+
+**Root Causes:**
+{self._format_list(causal_chain.get('root_causes', []))}
+
+**Intermediate Processes:**
+{self._format_list(causal_chain.get('intermediate_processes', []))}
+
+**Final Results:**
+{self._format_list(causal_chain.get('final_results', []))}
+"""
+        
+        # Format Phase 2 scenarios
+        type_names = {
+            "diagnostic": "Diagnostic Scenario (Root Cause Identification)",
+            "predictive": "Predictive Scenario (Future Prediction)",
+            "preventive": "Preventive Scenario (Risk Prevention)",
+            "optimization": "Optimization Scenario (Improvement Exploration)"
+        }
+        
+        scenarios_md = ""
+        for type_key, type_name in type_names.items():
+            scenario = phase2.get(type_key, {})
+            scenarios_md += f"""### {type_name}
+
+**Changed Condition:**
+{scenario.get('changed_condition', 'Not specified')}
+
+**Counterfactual Scenario:**
+{scenario.get('counterfactual_scenario', 'Not specified')}
+
+**Logical Consistency:**
+{scenario.get('logical_consistency', 'Not specified')}
+
+"""
+        
+        return f"""# Counterfactual Reasoning Analysis Report
+
+**Session ID:** {session['session_id']}  
+**Created:** {created_time}  
+**Problem:** {session['problem']}
+
+---
+
+## Phase 1: Actual State Analysis
+
+{current_state_md}
+
+{causal_chain_md}
+
+---
+
+## Phase 2: Counterfactual Scenarios
+
+{scenarios_md}
+
+---
+
+"""
+    
+    def _format_phase3_for_md(self, phase3_result: Dict[str, Any], type_name: str) -> str:
+        """Format Phase 3 analysis for markdown"""
+        principles = phase3_result.get("principles_applied", {})
+        reasoning = phase3_result.get("reasoning_depth", {})
+        outcomes = phase3_result.get("outcome_scenarios", {})
+        
+        level3_multi = reasoning.get("level3_multidimensional", {})
+        level4_long = reasoning.get("level4_longterm", {})
+        
+        return f"""### Phase 3: Deep Reasoning Process
+
+#### Step 1: Core Principles Applied
+
+**Minimal Change:**
+{principles.get('minimal_change', 'Not specified')}
+
+**Causal Consistency:**
+{principles.get('causal_consistency', 'Not specified')}
+
+**Proximity:**
+{principles.get('proximity', 'Not specified')}
+
+#### Step 2: Direct Impact Analysis (Level 1)
+
+{reasoning.get('level1_direct', 'Not specified')}
+
+#### Step 3: Ripple Effects & Multidimensional Analysis (Levels 2 & 3)
+
+**Level 2 - Ripple Effects:**
+
+{reasoning.get('level2_ripple', 'Not specified')}
+
+**Level 3 - Multidimensional Impact:**
+
+**Technical Dimension:**
+{level3_multi.get('technical', 'Not specified')}
+
+**Organizational Dimension:**
+{level3_multi.get('organizational', 'Not specified')}
+
+**Cultural Dimension:**
+{level3_multi.get('cultural', 'Not specified')}
+
+**External Dimension:**
+{level3_multi.get('external', 'Not specified')}
+
+#### Step 4: Long-term Evolution & Outcome Scenarios (Level 4)
+
+**Timeline:**
+{level4_long.get('timeline', 'Not specified')}
+
+**Sustained Benefits:**
+{level4_long.get('sustained_benefits', 'Not specified')}
+
+**New Challenges:**
+{level4_long.get('new_challenges', 'Not specified')}
+
+**Evolution:**
+{level4_long.get('evolution', 'Not specified')}
+
+**Outcome Scenarios:**
+
+- **Best Case:** {outcomes.get('best_case', 'Not specified')}
+- **Worst Case:** {outcomes.get('worst_case', 'Not specified')}
+- **Most Likely:** {outcomes.get('most_likely', 'Not specified')}
+
+"""
+    
+    def _format_phase4_for_md(self, comparative_analysis: Dict[str, Any], type_name: str) -> str:
+        """Format Phase 4 comparative analysis for markdown"""
+        actual_vs = comparative_analysis.get("actual_vs_counterfactual", {})
+        insights = comparative_analysis.get("key_insights", {})
+        actions = comparative_analysis.get("action_recommendations", {})
+        summary = comparative_analysis.get("final_summary", {})
+        
+        return f"""### Phase 4: Comparative Analysis
+
+#### Actual vs Counterfactual Comparison
+
+**What Differs:**
+{actual_vs.get('what_differs', 'Not specified')}
+
+**Why It Differs:**
+{actual_vs.get('why_differs', 'Not specified')}
+
+**Magnitude & Importance:**
+{actual_vs.get('magnitude_importance', 'Not specified')}
+
+#### Key Insights & Findings
+
+**Critical Findings:**
+{self._format_list(insights.get('critical_findings', []))}
+
+**Causal Factors & Leverage Points:**
+{self._format_list(insights.get('causal_factors', []))}
+
+**Improvement Opportunities:**
+{self._format_list(insights.get('improvement_opportunities', []))}
+
+#### Action Recommendations & Roadmap
+
+**Immediate Actions (0-1 month):**
+{self._format_list(actions.get('immediate_actions', []))}
+
+**Short-term Plans (1-3 months):**
+{self._format_list(actions.get('short_term_plans', []))}
+
+**Long-term Initiatives (3-12 months):**
+{self._format_list(actions.get('long_term_initiatives', []))}
+
+**Monitoring & Metrics:**
+{self._format_list(actions.get('monitoring_metrics', []))}
+
+#### Executive Summary
+
+**Key Takeaway:**
+{summary.get('key_takeaway', 'Not specified')}
+
+**Expected Impact:**
+{summary.get('expected_impact', 'Not specified')}
+
+**Implementation Timeline:**
+{summary.get('implementation_timeline', 'Not specified')}
+
+**Next Steps:**
+{self._format_list(summary.get('next_steps', []))}
+
+"""
+    
+    def _update_md_phase4(self, session: Dict[str, Any], analysis: Dict[str, Any]):
+        """Update markdown file with Phase 4 results"""
+        filepath = Path(session["md_filepath"])
+        content = filepath.read_text(encoding="utf-8")
+        
+        selected_type = session["selected_type"]
+        
+        phase4_content = f"""#### Phase 4: Comparative Analysis
+
+**Actual vs Counterfactual Comparison**
+
+**What Differs:**
+{analysis.get('actual_vs_counterfactual', {}).get('what_differs', 'N/A')}
+
+**Why It Differs:**
+{analysis.get('actual_vs_counterfactual', {}).get('why_differs', 'N/A')}
+
+**Magnitude & Importance:**
+{analysis.get('actual_vs_counterfactual', {}).get('magnitude_importance', 'N/A')}
+
+**Key Insights**
+
+- **Critical Findings:**
+{self._format_list(analysis.get('key_insights', {}).get('critical_findings', []))}
+
+- **Causal Factors:**
+{self._format_list(analysis.get('key_insights', {}).get('causal_factors', []))}
+
+- **Improvement Opportunities:**
+{self._format_list(analysis.get('key_insights', {}).get('improvement_opportunities', []))}
+
+**Action Recommendations**
+
+- **Immediate Actions (0-1 month):**
+{self._format_list(analysis.get('action_recommendations', {}).get('immediate_actions', []))}
+
+- **Short-term Plans (1-3 months):**
+{self._format_list(analysis.get('action_recommendations', {}).get('short_term_plans', []))}
+
+- **Long-term Initiatives (3-12 months):**
+{self._format_list(analysis.get('action_recommendations', {}).get('long_term_initiatives', []))}
+
+- **Monitoring Metrics:**
+{self._format_list(analysis.get('action_recommendations', {}).get('monitoring_metrics', []))}
+
+**Final Summary**
+
+**Key Takeaway:**
+{analysis.get('final_summary', {}).get('key_takeaway', 'N/A')}
+
+**Expected Impact:**
+{analysis.get('final_summary', {}).get('expected_impact', 'N/A')}
+
+**Implementation Timeline:**
+{analysis.get('final_summary', {}).get('implementation_timeline', 'N/A')}
+
+**Next Steps:**
+{self._format_list(analysis.get('final_summary', {}).get('next_steps', []))}
+
+"""
+        
+        # Insert into the type-specific Phase 4 placeholder
+        placeholder_start = f"<!-- PHASE4_{selected_type.upper()}_START -->"
+        placeholder_end = f"<!-- PHASE4_{selected_type.upper()}_END -->"
+        
+        if placeholder_start in content and placeholder_end in content:
+            # Replace the placeholder with actual content
+            content = content.replace(
+                f"{placeholder_start}\n{placeholder_end}",
+                f"{placeholder_start}\n{phase4_content}{placeholder_end}"
+            )
+        
+        # Update checkbox (only once)
+        if "- [ ] Phase 4: Comparative Analysis" in content:
+            content = content.replace("- [ ] Phase 4: Comparative Analysis", "- [x] Phase 4: Comparative Analysis")
+        
+        filepath.write_text(content, encoding="utf-8")
     
     async def execute(
         self,
         session_id: str,
         comparative_analysis: Dict[str, Any],
-        selected_type: Optional[str] = None,
         ctx: Optional[Context] = None
     ) -> str:
-        """Execute Phase 4: Comparative analysis for selected scenario type
-        
-        Args:
-            session_id: Session ID
-            comparative_analysis: Detailed comparative analysis with all required sections
-            selected_type: The scenario type being analyzed (diagnostic/predictive/preventive/optimization)
-            ctx: FastMCP context
-        """
+        """Execute Phase 4: Comparative analysis for selected scenario type"""
         
         if session_id not in counterfactual_sessions:
             return json.dumps({"error": "Session not found."}, ensure_ascii=False)
@@ -762,35 +1416,12 @@ class CounterfactualPhase4Tool(ReasoningTool):
                 "current_phase": session["phase"]
             }, ensure_ascii=False)
         
-        # Validate selected_type
-        valid_types = ["diagnostic", "predictive", "preventive", "optimization"]
-        if selected_type and selected_type not in valid_types:
-            return json.dumps({
-                "error": f"Invalid selected_type: {selected_type}",
-                "valid_types": valid_types,
-                "message": "selected_type must be one of: diagnostic, predictive, preventive, optimization"
-            }, ensure_ascii=False)
-        
-        # Extract type from comparative_analysis if not provided as parameter
+        # Use the selected_type from session
+        selected_type = session.get("selected_type")
         if not selected_type:
-            selected_type = comparative_analysis.get("type") or comparative_analysis.get("scenario_type")
-            if not selected_type:
-                return json.dumps({
-                    "error": "selected_type must be provided either as parameter or in comparative_analysis dict",
-                    "valid_types": valid_types,
-                    "message": "Please include 'type' field in comparative_analysis or pass selected_type parameter"
-                }, ensure_ascii=False)
-        
-        # Initialize analyzed_types if not exists
-        if "analyzed_types" not in session:
-            session["analyzed_types"] = []
-        
-        # Check if type already analyzed
-        if selected_type in session["analyzed_types"]:
             return json.dumps({
-                "warning": f"Type '{selected_type}' has already been analyzed.",
-                "analyzed_types": session["analyzed_types"],
-                "message": "This scenario type was already analyzed. You can still re-analyze it, but previous results will be overwritten."
+                "error": "No selected_type found in session. This is a system error.",
+                "message": "selected_type should have been set in Phase 2"
             }, ensure_ascii=False)
         
         # Validate comparative_analysis structure
@@ -799,207 +1430,112 @@ class CounterfactualPhase4Tool(ReasoningTool):
         if missing_sections:
             return json.dumps({
                 "error": f"Missing required sections in comparative_analysis: {missing_sections}",
-                "required_sections": required_sections,
-                "message": """comparative_analysis must include:
-                - actual_vs_counterfactual: Detailed comparison
-                - key_insights: Critical findings and opportunities
-                - action_recommendations: Immediate to long-term actions
-                - final_summary: Key takeaway and expected impact"""
+                "required_sections": required_sections
             }, ensure_ascii=False)
         
-        # Store Phase 4 result for this type
-        if "phase4_results" not in session:
-            session["phase4_results"] = {}
-        
+        # Store Phase 4 result and track analyzed type
         session["phase4_results"][selected_type] = {
             "type": selected_type,
             "analysis": comparative_analysis,
             "analyzed_at": time.time()
         }
         
-        # Add to analyzed types
-        session["analyzed_types"].append(selected_type)
+        # Add to analyzed_types list
+        if "analyzed_types" not in session:
+            session["analyzed_types"] = []
+        if selected_type not in session["analyzed_types"]:
+            session["analyzed_types"].append(selected_type)
+        
+        session["phase"] = "completed"
+        session["completed_at"] = time.time()
         session["updated_at"] = time.time()
         session["history"].append({
-            "action": f"phase4_complete_{selected_type}",
+            "action": f"phase4_complete",
             "timestamp": time.time(),
             "type": selected_type,
             "comparative_analysis": comparative_analysis
         })
         
+        # Update markdown file
+        self._update_md_phase4(session, comparative_analysis)
+        
         await self.log_execution(ctx, f"Phase 4 complete for type '{selected_type}' in session {session_id}")
         
-        # Check for remaining types
-        remaining_types = [t for t in valid_types if t not in session["analyzed_types"]]
-        
-        # Generate detailed analysis report for this type
         type_names = {
-            "diagnostic": "Diagnostic Analysis (Root Cause Identification)",
-            "predictive": "Predictive Analysis (Future Prediction)",
-            "preventive": "Preventive Analysis (Risk Prevention)",
-            "optimization": "Optimization Analysis (Improvement Exploration)"
+            "diagnostic": "Diagnostic",
+            "predictive": "Predictive",
+            "preventive": "Preventive",
+            "optimization": "Optimization"
         }
         
-        detailed_report = f"""
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 PHASE 4 DETAILED COMPARATIVE ANALYSIS REPORT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 **Scenario Type:** {type_names.get(selected_type, selected_type)}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 SECTION 1: ACTUAL VS COUNTERFACTUAL COMPARISON
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**What Differs:**
-{comparative_analysis["actual_vs_counterfactual"].get("what_differs", "Not specified")}
-
-**Why It Differs:**
-{comparative_analysis["actual_vs_counterfactual"].get("why_differs", "Not specified")}
-
-**Magnitude & Importance:**
-{comparative_analysis["actual_vs_counterfactual"].get("magnitude_importance", "Not specified")}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💡 SECTION 2: KEY INSIGHTS & FINDINGS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**Critical Findings:**
-{self._format_list(comparative_analysis["key_insights"].get("critical_findings", []))}
-
-**Causal Factors & Leverage Points:**
-{self._format_list(comparative_analysis["key_insights"].get("causal_factors", []))}
-
-**Improvement Opportunities:**
-{self._format_list(comparative_analysis["key_insights"].get("improvement_opportunities", []))}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎬 SECTION 3: ACTION RECOMMENDATIONS & ROADMAP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**🚀 Immediate Actions (0-1 month):**
-{self._format_list(comparative_analysis["action_recommendations"].get("immediate_actions", []))}
-
-**📅 Short-term Plans (1-3 months):**
-{self._format_list(comparative_analysis["action_recommendations"].get("short_term_plans", []))}
-
-**🎯 Long-term Initiatives (3-12 months):**
-{self._format_list(comparative_analysis["action_recommendations"].get("long_term_initiatives", []))}
-
-**📊 Monitoring & Metrics:**
-{self._format_list(comparative_analysis["action_recommendations"].get("monitoring_metrics", []))}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🎯 SECTION 4: EXECUTIVE SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-**💎 Key Takeaway:**
-{comparative_analysis["final_summary"].get("key_takeaway", "Not specified")}
-
-**📈 Expected Impact:**
-{comparative_analysis["final_summary"].get("expected_impact", "Not specified")}
-
-**⏱️ Implementation Timeline:**
-{comparative_analysis["final_summary"].get("implementation_timeline", "Not specified")}
-
-**✅ Next Steps:**
-{self._format_list(comparative_analysis["final_summary"].get("next_steps", []))}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
+        # Get next type to analyze (in order)
+        type_order = ["diagnostic", "predictive", "preventive", "optimization"]
+        analyzed_types = session["analyzed_types"]
+        next_type = None
         
-        if remaining_types:
-            # More types to analyze
-            session["phase"] = "phase4_partial"
-            
-            remaining_names = [type_names.get(t, t) for t in remaining_types]
-            
-            result = {
-                "status": "phase4_partial_complete",
+        for t in type_order:
+            if t not in analyzed_types:
+                next_type = t
+                break
+        
+        # Build response message
+        if next_type:
+            # There are more types to analyze
+            return json.dumps({
+                "status": "type_complete",
                 "session_id": session_id,
-                "analyzed_type": selected_type,
-                "analyzed_types": session["analyzed_types"],
-                "remaining_types": remaining_types,
-                "total_types": len(valid_types),
-                "progress": f"{len(session['analyzed_types'])}/{len(valid_types)} types analyzed",
-                "detailed_report": detailed_report,
-                "message": f"""✅ Phase 4 Analysis Complete for '{type_names.get(selected_type, selected_type)}'
+                "analyzed_type": type_names.get(selected_type, selected_type),
+                "analyzed_count": len(analyzed_types),
+                "total_types": 4,
+                "next_type": next_type,
+                "next_type_name": type_names[next_type],
+                "md_file": session["md_filepath"],
+                "next_action": "call counterfactual_phase2 (without selected_type parameter)",
+                "message": f"""✅ Phase 4 Complete for {type_names.get(selected_type, selected_type)}!
 
-{detailed_report}
+� **Progress:** {len(analyzed_types)}/4 types analyzed
+📄 **Report:** {session['md_filepath']}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 PROGRESS STATUS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 
-**Completed Analysis:** {len(session['analyzed_types'])}/{len(valid_types)} scenario types
+🔄 **Automatic Progression to Next Type**
 
-✅ **Analyzed Types:**
-{self._format_list([type_names.get(t, t) for t in session['analyzed_types']])}
+**Next Type:** {type_names[next_type]}
 
-⏳ **Remaining Types:**
-{self._format_list(remaining_names)}
+The system will automatically select the next type in sequence.
+Simply call counterfactual_phase2 again (scenarios will be reused from first analysis).
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔄 NEXT STEPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Call counterfactual_phase2 with the same scenarios:
+{{
+    "session_id": "{session_id}",
+    "scenarios": {{
+        "diagnostic": {{...}},
+        "predictive": {{...}},
+        "preventive": {{...}},
+        "optimization": {{...}}
+    }}
+}}
 
-**Option 1: Continue Analysis**
-To analyze another scenario type, repeat Phase 3 & 4 for one of the remaining types:
-{self._format_list(remaining_types)}
-
-1. Select a type from remaining types
-2. Run Phase 3 (4 steps) for that type
-3. Run Phase 4 for that type
-
-**Option 2: Complete Session**
-If you want to end the analysis now, call:
-counterfactual_get_result(session_id="{session_id}")
-
-This will retrieve all completed analyses so far.
-"""
-            }
+The system will automatically select "{next_type}" for analysis."""
+            }, indent=2, ensure_ascii=False)
         else:
-            # All types analyzed - session complete
-            session["phase"] = "completed"
-            session["completed_at"] = time.time()
-            duration = session["completed_at"] - session["created_at"]
-            
-            result = {
-                "status": "all_types_complete",
+            # All types analyzed - complete
+            return json.dumps({
+                "status": "all_complete",
                 "session_id": session_id,
-                "analyzed_type": selected_type,
-                "analyzed_types": session["analyzed_types"],
-                "total_types_analyzed": len(session["analyzed_types"]),
-                "duration_seconds": round(duration, 2),
-                "detailed_report": detailed_report,
-                "message": f"""🎉 COMPLETE COUNTERFACTUAL REASONING ANALYSIS FINISHED!
+                "analyzed_types": [type_names.get(t, t) for t in analyzed_types],
+                "analyzed_count": len(analyzed_types),
+                "md_file": session["md_filepath"],
+                "message": f"""✅ All Counterfactual Analysis Complete! 🎉
 
-{detailed_report}
+📊 **All 4 types analyzed:**
+{self._format_list([type_names.get(t, t) for t in analyzed_types])}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ FINAL STATUS - ALL SCENARIO TYPES ANALYZED
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 **Complete Report:** {session['md_filepath']}
 
-**Total Types Analyzed:** {len(session['analyzed_types'])}/{len(valid_types)}
-
-**Completed Analyses:**
-{self._format_list([type_names.get(t, t) for t in session['analyzed_types']])}
-
-**Total Duration:** {round(duration, 2)} seconds
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📥 RETRIEVE COMPLETE RESULTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Call counterfactual_get_result(session_id="{session_id}") to retrieve:
-- All Phase 1-3 analysis results
-- Complete Phase 4 comparative analyses for all {len(session['analyzed_types'])} types
-- Full reasoning history and timeline
-- Comprehensive insights and recommendations across all scenarios
-"""
-            }
-        
-        return json.dumps(result, indent=2, ensure_ascii=False)
+The comprehensive counterfactual reasoning analysis has been saved to the markdown file.
+You can now review all scenarios and their comparative analyses."""
+            }, indent=2, ensure_ascii=False)
     
     def _format_list(self, items: list) -> str:
         """Format list items with bullet points"""
