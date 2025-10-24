@@ -46,22 +46,22 @@ Shows execution flow between source files with professional visual representatio
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
     ╭─────────────────────────────────────────────╮
-    │  🚀 START: ForceCancelPipeline.java    │
+    │  🚀 START: AccountPipeline.java    │
     ╰─────────────────────────────────────────────╯
                       │
                       ▼
     ┌─────────────────────────────────────────────┐
-    │ ⚙️  ForceCancelPipeline.java           │
+    │ ⚙️  AccountPipeline.java           │
     │ 📋 Type: pipeline                           │
     └─────────────────────────────────────────────┘
                       │
-                      ├──→ 🔄 [ForceCancelFn.java] (transform)
-                      ├──→ 📦 [ForceCancelDto.java] (dto)
+                      ├──→ 🔄 [AccountFn.java] (transform)
+                      ├──→ 📦 [AccountDto.java] (dto)
                       └──→ 💾 [Repository.java] (repository)
                       │
                       ▼
     ┌─────────────────────────────────────────────┐
-    │ 🔄  ForceCancelFn.java                 │
+    │ 🔄  AccountFn.java                 │
     │ 📋 Type: transform                          │
     └─────────────────────────────────────────────┘
                       │
@@ -82,11 +82,11 @@ Shows actual method call chains in professional tree format:
 
     ╭─ 🎯 Entry Point
     │
-    ▼  ForceCancelPipeline.apply()
+    ▼  AccountPipeline.apply()
         │
-        └──▶ 🔸 ForceCancelFn.processElement()
+        └──▶ 🔸 AccountFn.processElement()
                 │
-                ├──▶ 🔸 ForceCancelDto.builder()
+                ├──▶ 🔸 AccountDto.builder()
                 │
                 ├──▶ 🔸 Repository.findById()
                 │
@@ -118,11 +118,11 @@ from src.wrappers.analysis.feature_flow_wrapper import feature_flow_analyze
 
 # Complete analysis in one call
 result = await feature_flow_analyze(
-    feature_name="ForceCancel",
+    feature_name="Account",
     file_paths=[
-        "/path/to/ForceCancelPipeline.java",
-        "/path/to/ForceCancelFn.java",
-        "/path/to/ForceCancelDto.java",
+        "/path/to/AccountPipeline.java",
+        "/path/to/AccountFn.java",
+        "/path/to/AccountDto.java",
         "/path/to/Repository.java"
     ]
 )
@@ -131,12 +131,12 @@ result = await feature_flow_analyze(
 # {
 #   "success": true,
 #   "sessionId": "flow_1234567890_5678",
-#   "featureName": "ForceCancel",
+#   "featureName": "Account",
 #   "status": "completed",
 #   "totalFiles": 4,
 #   "totalMethods": 23,
-#   "entryPoints": ["ForceCancelPipeline.java"],
-#   "outputPath": "/path/to/output/ForceCancel_flow.md",
+#   "entryPoints": ["AccountPipeline.java"],
+#   "outputPath": "/path/to/output/Account_flow.md",
 #   "message": "Flow analysis completed!"
 # }
 ```
@@ -281,7 +281,7 @@ await feature_flow_finalize(session_id)
 ```python
 # One call - done!
 await feature_flow_analyze(
-    feature_name="ForceCancel",
+    feature_name="Account",
     file_paths=[...]
 )
 ```
