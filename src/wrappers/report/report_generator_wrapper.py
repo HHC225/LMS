@@ -49,9 +49,43 @@ async def generate_report(
       "metadata": {
         "reported_date": "When the event was first reported or detected (ISO 8601 format)",
         "tags": ["relevant", "tags", "for", "categorization"]
+      },
+      "metrics": {
+        "charts": [
+          {
+            "id": "unique-chart-id",
+            "title": "Chart Title",
+            "chartType": "line|bar|pie|doughnut|radar",
+            "data": {
+              "labels": ["Label1", "Label2", "Label3"],
+              "datasets": [
+                {
+                  "label": "Dataset Name",
+                  "values": [value1, value2, value3]
+                }
+              ]
+            },
+            "options": {}
+          }
+        ]
       }
     }
     ```
+    
+    **OPTIONAL - Metrics Field:**
+    The "metrics" field is OPTIONAL and should only be included when the input content contains
+    numerical data, trends, or measurable metrics.
+    
+    - **When to include**: Performance data, statistics, trends, time series, percentages, counts
+    - **When to omit**: Pure text content with no numerical data
+    - **Chart Types**:
+      * "line": Time series data, trends over time
+      * "bar": Comparisons between categories
+      * "pie": Percentage distribution, composition (values should sum meaningfully)
+      * "doughnut": Similar to pie chart, modern appearance
+      * "radar": Multi-dimensional comparisons
+    - **Multiple Charts**: You can include multiple charts in the "charts" array
+    - **Multiple Datasets**: Each chart can have multiple datasets for comparison
     
     **REPORT GENERATION GUIDELINES:**
     

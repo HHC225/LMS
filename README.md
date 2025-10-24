@@ -296,13 +296,13 @@ Generate diverse creative responses through tail distribution sampling, breaking
 
 [📖 Full Documentation →](docs/verbalized-sampling.md)
 
-### [Counterfactual Reasoning](docs/counterfactual-reasoning.md) V3.1
+### [Counterfactual Reasoning](docs/counterfactual-reasoning.md) V3.2
 
-Explore alternative scenarios through systematic "what-if" analysis.
+Explore alternative scenarios through systematic "what-if" analysis with automatic MD report generation.
 
 **6 Actions**: Initialize • Phase 1 • Phase 2 • Phase 3 (4 steps) • Phase 4 • Get Result • Reset
 
-**Key Features**: 4 reasoning types (Diagnostic, Predictive, Preventive, Optimization), enhanced Phase 4 reports, type tracking, professional formatting
+**Key Features**: 4 reasoning types (Diagnostic, Predictive, Preventive, Optimization), automatic MD report output, progressive file updates, type tracking
 
 [📖 Full Documentation →](docs/counterfactual-reasoning.md)
 

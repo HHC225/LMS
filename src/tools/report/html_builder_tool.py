@@ -250,6 +250,35 @@ class HTMLBuilderTool(BaseTool):
             
             html_parts.append('</section>')
         
+        # Metrics & Charts Section (Optional)
+        metrics = data.get("metrics")
+        if metrics and metrics.get("charts"):
+            html_parts.extend([
+                '<section class="report-section charts-section" data-aos="fade-up">',
+                '<h2>Metrics & Analytics</h2>',
+                '<div class="charts-grid">'
+            ])
+            
+            for chart in metrics.get("charts", []):
+                chart_id = self._sanitize_chart_id(chart.get("id", f"chart-{len(html_parts)}"))
+                chart_title = chart.get("title", "Chart")
+                
+                html_parts.extend([
+                    '<div class="glass-card chart-card">',
+                    '<div class="card-content">',
+                    f'<h3>{self._format_content(chart_title)}</h3>',
+                    '<div class="chart-container">',
+                    f'<canvas id="{chart_id}"></canvas>',
+                    '</div>',
+                    '</div>',
+                    '</div>'
+                ])
+            
+            html_parts.extend([
+                '</div>',
+                '</section>'
+            ])
+        
         # Metadata Section
         metadata = data.get("metadata", {})
         html_parts.extend([
@@ -290,6 +319,16 @@ class HTMLBuilderTool(BaseTool):
         ])
         
         return "\n".join(html_parts)
+    
+    @staticmethod
+    def _sanitize_chart_id(chart_id: str) -> str:
+        """Sanitize chart ID to be valid HTML id"""
+        # Remove special characters except hyphens and underscores
+        sanitized = re.sub(r'[^a-zA-Z0-9_-]', '-', chart_id)
+        # Ensure it starts with a letter
+        if not sanitized[0].isalpha():
+            sanitized = 'chart-' + sanitized
+        return sanitized
     
     @staticmethod
     def _format_content(content: str) -> str:

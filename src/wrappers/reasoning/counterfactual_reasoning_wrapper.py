@@ -13,6 +13,7 @@ from src.tools.reasoning.counterfactual_reasoning_tool import (
     CounterfactualPhase3Step2Tool,
     CounterfactualPhase3Step3Tool,
     CounterfactualPhase3Step4Tool,
+    CounterfactualPhase3Step5Tool,
     CounterfactualPhase4Tool,
     CounterfactualGetResultTool,
     CounterfactualResetTool,
@@ -28,6 +29,7 @@ _phase3_step1_tool = CounterfactualPhase3Step1Tool()
 _phase3_step2_tool = CounterfactualPhase3Step2Tool()
 _phase3_step3_tool = CounterfactualPhase3Step3Tool()
 _phase3_step4_tool = CounterfactualPhase3Step4Tool()
+_phase3_step5_tool = CounterfactualPhase3Step5Tool()
 _phase4_tool = CounterfactualPhase4Tool()
 _get_result_tool = CounterfactualGetResultTool()
 _reset_tool = CounterfactualResetTool()
@@ -106,16 +108,17 @@ async def counterfactual_phase1(
 async def counterfactual_phase2(
     session_id: str,
     scenarios: Dict[str, Any],
+    selected_type: Optional[str] = None,
     ctx: Optional[Context] = None
 ) -> str:
     """
     Phase 2: Counterfactual Scenario Generation.
     
-    Generate 4 types of counterfactual scenarios:
-    - Diagnostic: "What if X was different?" (Root cause identification)
-    - Predictive: "What if trend continues?" (Future prediction)
-    - Preventive: "What if problem occurs?" (Risk prevention)
-    - Optimization: "What if alternative method?" (Improvement exploration)
+    Generate 4 types of counterfactual scenarios and automatically select in sequence:
+    1st call: Diagnostic (Root cause identification)
+    2nd call: Predictive (Future prediction)
+    3rd call: Preventive (Risk prevention)
+    4th call: Optimization (Improvement exploration)
     
     Args:
         session_id: Session ID from counterfactual_initialize
@@ -126,12 +129,14 @@ async def counterfactual_phase2(
                 "preventive": {...},
                 "optimization": {...}
             }
+        selected_type: Optional. If not provided, automatically selects next type in sequence.
+                      Manual override available (one of: diagnostic, predictive, preventive, optimization)
         ctx: FastMCP context for logging
     
     Returns:
         JSON string with Phase 2 result and Phase 3 instructions
     
-    Example:
+    Example (first call - auto-selects diagnostic):
         result = await counterfactual_phase2(
             session_id="cf_1234567890_abcd1234",
             scenarios={
@@ -145,10 +150,18 @@ async def counterfactual_phase2(
                 "optimization": {...}
             }
         )
+    
+    Example (manual override):
+        result = await counterfactual_phase2(
+            session_id="cf_1234567890_abcd1234",
+            scenarios={...},
+            selected_type="preventive"  # Skip diagnostic and predictive
+        )
     """
     return await _phase2_tool.execute(
         session_id=session_id,
         scenarios=scenarios,
+        selected_type=selected_type,
         ctx=ctx
     )
 
@@ -227,22 +240,16 @@ async def counterfactual_phase3_step2(
 async def counterfactual_phase3_step3(
     session_id: str,
     level2_ripple: str,
-    level3_multidimensional: Dict[str, str],
     ctx: Optional[Context] = None
 ) -> str:
     """
-    Phase 3 Step 3: Ripple Effects & Multidimensional Analysis (Levels 2 & 3).
+    Phase 3 Step 3: Ripple Effects Analysis (Level 2).
     
-    Analyze secondary ripple effects and impacts across 4 dimensions.
+    Analyze secondary ripple effects.
     
     Args:
         session_id: Session ID from counterfactual_initialize
         level2_ripple: Ripple effects analysis
-        level3_multidimensional: Dict with 4 dimensions:
-            - technical: Technical dimension analysis
-            - organizational: Organizational dimension analysis
-            - cultural: Cultural dimension analysis
-            - external: External dimension analysis
         ctx: FastMCP context for logging
     
     Returns:
@@ -251,7 +258,47 @@ async def counterfactual_phase3_step3(
     Example:
         result = await counterfactual_phase3_step3(
             session_id="cf_1234567890_abcd1234",
-            level2_ripple="Cascading effects include improved monitoring...",
+            level2_ripple="Cascading effects include improved monitoring..."
+        )
+    """
+    print(f"\n[DEBUG] counterfactual_phase3_step3 called with parameters:")
+    print(f"  - session_id: {session_id}")
+    print(f"  - level2_ripple type: {type(level2_ripple)}")
+    print(f"  - level2_ripple length: {len(level2_ripple) if isinstance(level2_ripple, str) else 'N/A'}")
+    print(f"  - ctx: {ctx}")
+    
+    return await _phase3_step3_tool.execute(
+        session_id=session_id,
+        level2_ripple=level2_ripple,
+        ctx=ctx
+    )
+
+
+async def counterfactual_phase3_step4(
+    session_id: str,
+    level3_multidimensional: Dict[str, str],
+    ctx: Optional[Context] = None
+) -> str:
+    """
+    Phase 3 Step 4: Multidimensional Analysis (Level 3).
+    
+    Analyze impacts across 4 dimensions.
+    
+    Args:
+        session_id: Session ID from counterfactual_initialize
+        level3_multidimensional: Dict with 4 dimensions:
+            - technical: Technical dimension analysis
+            - organizational: Organizational dimension analysis
+            - cultural: Cultural dimension analysis
+            - external: External dimension analysis
+        ctx: FastMCP context for logging
+    
+    Returns:
+        JSON string with Step 4 result and Step 5 instructions
+    
+    Example:
+        result = await counterfactual_phase3_step4(
+            session_id="cf_1234567890_abcd1234",
             level3_multidimensional={
                 "technical": "System architecture becomes more resilient",
                 "organizational": "Teams adopt new incident procedures",
@@ -260,22 +307,21 @@ async def counterfactual_phase3_step3(
             }
         )
     """
-    return await _phase3_step3_tool.execute(
+    return await _phase3_step4_tool.execute(
         session_id=session_id,
-        level2_ripple=level2_ripple,
         level3_multidimensional=level3_multidimensional,
         ctx=ctx
     )
 
 
-async def counterfactual_phase3_step4(
+async def counterfactual_phase3_step5(
     session_id: str,
     level4_longterm: Dict[str, str],
     outcome_scenarios: Dict[str, str],
     ctx: Optional[Context] = None
 ) -> str:
     """
-    Phase 3 Step 4: Long-term Evolution & Outcome Scenarios (Level 4).
+    Phase 3 Step 5: Long-term Evolution & Outcome Scenarios (Level 4).
     
     Final step of Phase 3. Analyze long-term evolution and generate outcome scenarios.
     Automatically provides Phase 4 instructions upon completion.
@@ -297,7 +343,7 @@ async def counterfactual_phase3_step4(
         JSON string with complete Phase 3 result and Phase 4 instructions
     
     Example:
-        result = await counterfactual_phase3_step4(
+        result = await counterfactual_phase3_step5(
             session_id="cf_1234567890_abcd1234",
             level4_longterm={
                 "timeline": "3-6-12 month phases",
@@ -312,7 +358,7 @@ async def counterfactual_phase3_step4(
             }
         )
     """
-    return await _phase3_step4_tool.execute(
+    return await _phase3_step5_tool.execute(
         session_id=session_id,
         level4_longterm=level4_longterm,
         outcome_scenarios=outcome_scenarios,
@@ -323,25 +369,17 @@ async def counterfactual_phase3_step4(
 async def counterfactual_phase4(
     session_id: str,
     comparative_analysis: Dict[str, Any],
-    selected_type: Optional[str] = None,
     ctx: Optional[Context] = None
 ) -> str:
     """
-    Phase 4: Comparative Analysis for Selected Type.
+    Phase 4: Comparative Analysis.
     
-    Perform comparative analysis for the selected type (must include 'type' field):
-    - Diagnostic: "What if X was different?" (Root cause identification)
-    - Predictive: "What if trend continues?" (Future prediction)
-    - Preventive: "What if problem occurs?" (Risk prevention)
-    - Optimization: "What if alternative method?" (Improvement exploration)
-    
-    After completion, checks for remaining unanalyzed types and prompts
-    user to continue if more types are available.
+    Perform comparative analysis for the selected type.
+    The type is determined from the Phase 2 selection.
     
     Args:
         session_id: Session ID from counterfactual_initialize
-        selected_type: The type being analyzed (must match Phase 3 type)
-        comparative_analysis: Comparative analysis for selected type:
+        comparative_analysis: Comparative analysis:
             {
                 "actual_vs_counterfactual": {
                     "what_differs": "...",
@@ -369,19 +407,17 @@ async def counterfactual_phase4(
         ctx: FastMCP context for logging
     
     Returns:
-        JSON string with Phase 4 result and optional prompt for remaining types
+        JSON string with Phase 4 result
         
     Example:
         result = await counterfactual_phase4(
             session_id="cf_1234567890_abcd1234",
-            selected_type="preventive",
             comparative_analysis={...}
         )
     """
     return await _phase4_tool.execute(
         session_id=session_id,
         comparative_analysis=comparative_analysis,
-        selected_type=selected_type,
         ctx=ctx
     )
 

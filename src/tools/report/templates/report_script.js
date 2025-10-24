@@ -63,4 +63,101 @@ function renderReport(data) {
     keyEventsList.innerHTML = data.key_findings.key_events.map(event => 
         `<li>${parseMarkdown(event)}</li>`
     ).join('');
+    
+    // Render charts if metrics exist
+    if (data.metrics) {
+        renderCharts(data.metrics);
+    }
+}
+
+function renderCharts(metrics) {
+    if (!metrics || !metrics.charts || metrics.charts.length === 0) {
+        return; // No chart data
+    }
+    
+    metrics.charts.forEach(chartConfig => {
+        const ctx = document.getElementById(chartConfig.id);
+        if (!ctx) {
+            console.warn(`Canvas element not found: ${chartConfig.id}`);
+            return;
+        }
+        
+        // Transform datasets (values -> data)
+        const datasets = chartConfig.data.datasets.map((dataset, index) => ({
+            label: dataset.label,
+            data: dataset.values,
+            backgroundColor: getChartColors(chartConfig.chartType, index, chartConfig.data.labels.length),
+            borderColor: getBorderColors(chartConfig.chartType, index, chartConfig.data.labels.length),
+            borderWidth: 2,
+            fill: chartConfig.chartType === 'line' ? false : true
+        }));
+        
+        new Chart(ctx, {
+            type: chartConfig.chartType,
+            data: {
+                labels: chartConfig.data.labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: '#e8e8e8'
+                        }
+                    }
+                },
+                scales: chartConfig.chartType !== 'pie' && chartConfig.chartType !== 'doughnut' && chartConfig.chartType !== 'radar' ? {
+                    x: {
+                        ticks: { color: '#b8b8b8' },
+                        grid: { color: '#3a3a3a' }
+                    },
+                    y: {
+                        ticks: { color: '#b8b8b8' },
+                        grid: { color: '#3a3a3a' }
+                    }
+                } : {},
+                ...(chartConfig.options || {})
+            }
+        });
+    });
+}
+
+function getChartColors(chartType, index, labelCount) {
+    const colorPalette = [
+        'rgba(99, 102, 241, 0.8)',   // Indigo
+        'rgba(16, 185, 129, 0.8)',   // Green
+        'rgba(245, 158, 11, 0.8)',   // Amber
+        'rgba(239, 68, 68, 0.8)',    // Red
+        'rgba(139, 92, 246, 0.8)',   // Purple
+        'rgba(59, 130, 246, 0.8)',   // Blue
+        'rgba(236, 72, 153, 0.8)',   // Pink
+        'rgba(34, 197, 94, 0.8)'     // Emerald
+    ];
+    
+    if (chartType === 'pie' || chartType === 'doughnut') {
+        return colorPalette.slice(0, labelCount);
+    }
+    return colorPalette[index % colorPalette.length];
+}
+
+function getBorderColors(chartType, index, labelCount) {
+    const borderPalette = [
+        'rgba(99, 102, 241, 1)',
+        'rgba(16, 185, 129, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(239, 68, 68, 1)',
+        'rgba(139, 92, 246, 1)',
+        'rgba(59, 130, 246, 1)',
+        'rgba(236, 72, 153, 1)',
+        'rgba(34, 197, 94, 1)'
+    ];
+    
+    if (chartType === 'pie' || chartType === 'doughnut') {
+        return borderPalette.slice(0, labelCount);
+    }
+    return borderPalette[index % borderPalette.length];
 }
