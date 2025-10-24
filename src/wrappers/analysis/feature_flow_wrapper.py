@@ -28,7 +28,7 @@ async def feature_flow_analyze(
     
     Args:
         feature_name: Name of the feature to analyze
-                     Example: "ForceCancel"
+                     Example: "Account"
         file_paths: List of source file paths related to this feature
                    Example: ["/path/to/Pipeline.java", "/path/to/Transform1.java", ...]
         ctx: FastMCP context for logging
@@ -46,11 +46,11 @@ async def feature_flow_analyze(
     
     Example:
         result = await feature_flow_analyze(
-            feature_name="ForceCancel",
+            feature_name="Account",
             file_paths=[
-                "/path/to/ForceCancelPipeline.java",
-                "/path/to/ForceCancelFn.java",
-                "/path/to/ForceCancelDto.java"
+                "/path/to/AccountPipeline.java",
+                "/path/to/AccountFn.java",
+                "/path/to/AccountDto.java"
             ]
         )
         # Analysis complete! Check output MD file for ASCII flow diagram
