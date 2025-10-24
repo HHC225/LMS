@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{REPORT_TITLE}}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        {{STYLES}}
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <header class="page-header">
+            <div>
+                <span id="report-type-badge" class="report-type-badge"></span>
+                <h1 id="report-title-heading">{{REPORT_TITLE}}</h1>
+                <p class="report-meta">
+                    Detected on <span id="reported-date-meta"></span>
+                </p>
+            </div>
+        </header>
+
+        <main class="report-grid">
+            <div class="card grid-main-col">
+                <h2 class="card-header"><i class="fas fa-star"></i> Key Takeaways</h2>
+                <ul id="key-takeaways-list" class="takeaways-list">
+                    <!-- JS Populated -->
+                </ul>
+            </div>
+
+            <!--  Severity -->
+            <div id="severity-card" class="card grid-sidebar-top">
+                <h2 class="card-header"><i class="fas fa-shield-alt"></i> Severity</h2>
+                <p id="severity-text" class="highlight-text"></p>
+            </div>
+
+            <!-- Business Implications -->
+            <div class="card grid-sidebar-bottom">
+                <h2 class="card-header"><i class="fas fa-briefcase"></i> Business Impact</h2>
+                <p id="business-implications-text" class="card-body-text"></p>
+            </div>
+
+            <!-- Analysis & Findings -->
+            <div class="card grid-full-col">
+                <h2 class="card-header"><i class="fas fa-magnifying-glass-chart"></i> Analysis & Findings</h2>
+                <div class="findings-grid">
+                    <div>
+                        <h3>Root Cause</h3>
+                        <p id="root-cause-text"></p>
+                    </div>
+                    <div>
+                        <h3>Affected Systems</h3>
+                        <ul id="affected-systems-list" class="bullet-list"></ul>
+                    </div>
+                    <div>
+                        <h3>Next Steps</h3>
+                        <p id="next-steps-summary-text"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Timeline -->
+            <div class="card grid-full-col">
+                <h2 class="card-header"><i class="fas fa-timeline"></i> Key Events Timeline</h2>
+                <ul id="key-events-list" class="timeline-list">
+                    <!-- JS Populated -->
+                </ul>
+            </div>
+        </main>
+
+        <footer class="page-footer">
+            Generated on <span id="timestamp"></span>
+        </footer>
+    </div>
+
+    <script id="reportData" type="application/json">
+        {{REPORT_DATA}}
+    </script>
+    <script>
+        {{SCRIPTS}}
+    </script>
+</body>
+</html>

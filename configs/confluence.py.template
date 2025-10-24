@@ -1,0 +1,144 @@
+"""
+Confluence Configuration Template
+This file serves as a template for Confluence connection settings.
+Copy this file to 'confluence.py' and fill in your actual credentials.
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional, List
+
+
+@dataclass
+class ConfluenceConfig:
+    """
+    Confluence API configuration settings
+    
+    Attributes:
+        base_url: Confluence REST API base URL
+        token: API token for authentication (Bearer token)
+        username: Username (optional, usually not required with token auth)
+        default_space: Default space key for operations
+        max_results: Maximum number of results to return in searches
+        timeout: Request timeout in milliseconds
+        debug: Enable debug logging
+        default_expand: Default fields to expand in API responses
+        page_size: Default page size for paginated results
+        content_format: Content representation format (storage, view, editor)
+    """
+    base_url: str
+    token: str
+    username: Optional[str] = None
+    default_space: Optional[str] = None
+    max_results: int = 50
+    timeout: int = 30000
+    debug: bool = False
+    default_expand: List[str] = field(default_factory=lambda: [
+        "body.storage",
+        "version",
+        "space",
+        "ancestors"
+    ])
+    page_size: int = 25
+    content_format: str = "storage"
+
+
+# Template configuration with placeholder values
+# Replace these with your actual Confluence instance details
+_config = ConfluenceConfig(
+    # Example: "https://your-domain.atlassian.net/wiki/rest/api/"
+    base_url="https://your-confluence-instance.com/rest/api/",
+    
+    # Generate API token from: https://id.atlassian.com/manage-profile/security/api-tokens
+    token="YOUR_API_TOKEN_HERE",
+    
+    # Optional: Your Confluence username (email)
+    username=None,
+    
+    # Optional: Default space key to use
+    # Example: "PROJ", "TEAM", "DOCS"
+    default_space=None,
+    
+    # Maximum number of search results (1-1000)
+    max_results=50,
+    
+    # Request timeout in milliseconds
+    timeout=30000,
+    
+    # Enable debug logging
+    debug=False,
+    
+    # Default fields to expand in API responses
+    default_expand=[
+        "body.storage",  # Page content in storage format
+        "version",       # Version information
+        "space",         # Space details
+        "ancestors"      # Parent page hierarchy
+    ],
+    
+    # Default page size for pagination (1-100)
+    page_size=25,
+    
+    # Content format: "storage", "view", or "editor"
+    content_format="storage"
+)
+
+
+def get_confluence_config() -> ConfluenceConfig:
+    """
+    Get Confluence configuration
+    
+    Returns:
+        ConfluenceConfig instance with configuration values
+        
+    Raises:
+        ValueError: If configuration is invalid
+    """
+    if not validate_config(_config):
+        raise ValueError("Invalid Confluence configuration. Please check your settings.")
+    return _config
+
+
+def validate_config(config: ConfluenceConfig) -> bool:
+    """
+    Validate Confluence configuration
+    
+    Args:
+        config: Configuration to validate
+        
+    Returns:
+        True if valid, False otherwise
+    """
+    # Check required fields
+    if not config.base_url or not config.token:
+        print("❌ Required fields missing: base_url and token are required")
+        return False
+    
+    # Validate base_url format
+    if not config.base_url.startswith(("http://", "https://")):
+        print("❌ base_url must start with http:// or https://")
+        return False
+    
+    # Check for placeholder values
+    if "YOUR_API_TOKEN_HERE" in config.token or "your-confluence-instance" in config.base_url:
+        print("❌ Please replace placeholder values with actual credentials")
+        return False
+    
+    # Validate numeric ranges
+    if not (1 <= config.max_results <= 1000):
+        print("❌ max_results must be between 1 and 1000")
+        return False
+    
+    if config.timeout <= 0:
+        print("❌ timeout must be positive")
+        return False
+    
+    if not (1 <= config.page_size <= 100):
+        print("❌ page_size must be between 1 and 100")
+        return False
+    
+    # Validate content_format
+    if config.content_format not in ["storage", "view", "editor"]:
+        print("❌ content_format must be 'storage', 'view', or 'editor'")
+        return False
+    
+    return True

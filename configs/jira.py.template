@@ -1,0 +1,184 @@
+"""
+JIRA Configuration Template
+Configuration settings for JIRA MCP tools
+
+⚠️ IMPORTANT: This is a template file!
+1. Copy this file to jira.py
+2. Replace placeholder values with your actual JIRA credentials
+3. Never commit jira.py to Git (it's in .gitignore)
+
+Usage:
+    cp configs/jira.py.template configs/jira.py
+    # Edit jira.py with your actual credentials
+"""
+import os
+from typing import Optional, Dict
+from dataclasses import dataclass
+
+
+@dataclass
+class CustomFieldsConfig:
+    """Custom field IDs configuration"""
+    # Knowledge base field (example: customfield_10001)
+    knowledge: str = "customfield_XXXXX"
+    
+    # Assigned area field (example: customfield_10002)
+    assigned_area: str = "customfield_XXXXX"
+    
+    # Incident content field (example: customfield_10003)
+    incident_content: str = "customfield_XXXXX"
+    
+    # Temporary response field (example: customfield_10004)
+    temporary_response: str = "customfield_XXXXX"
+    
+    # Permanent response field (example: customfield_10005)
+    permanent_response: str = "customfield_XXXXX"
+    
+    # Impact scope field (example: customfield_10006)
+    impact_scope: str = "customfield_XXXXX"
+
+
+@dataclass
+class JiraConfig:
+    """JIRA API Configuration"""
+    # Base URL for JIRA API (e.g., https://your-domain.atlassian.net or https://your-jira.com/rest/api/2/)
+    base_url: str
+    
+    # API token or password for authentication
+    token: str
+    
+    # Username or email (optional, typically not required for token auth)
+    username: Optional[str] = None
+    
+    # Default project key (optional, e.g., "PROJECT")
+    default_project: Optional[str] = None
+    
+    # Maximum results per search query
+    max_results: int = 50
+    
+    # Request timeout in seconds
+    timeout: int = 30
+    
+    # Enable debug logging
+    debug: bool = False
+    
+    # Custom fields configuration
+    custom_fields: CustomFieldsConfig = None
+    
+    def __post_init__(self):
+        if self.custom_fields is None:
+            self.custom_fields = CustomFieldsConfig()
+
+
+def get_jira_config() -> JiraConfig:
+    """
+    Get JIRA configuration from environment variables or defaults
+    
+    Environment Variables:
+        JIRA_BASE_URL: Base URL for JIRA API
+        JIRA_TOKEN: API token or password
+        JIRA_USERNAME: Username or email (optional)
+        JIRA_DEFAULT_PROJECT: Default project key (optional)
+        JIRA_MAX_RESULTS: Maximum results per query (default: 50)
+        JIRA_TIMEOUT: Request timeout in seconds (default: 30)
+        JIRA_DEBUG: Enable debug mode (true/false, default: false)
+    
+    Returns:
+        JiraConfig: JIRA configuration object
+        
+    Raises:
+        ValueError: If required configuration is missing
+    """
+    base_url = os.getenv('JIRA_BASE_URL')
+    token = os.getenv('JIRA_TOKEN')
+    
+    # For development/testing - replace with your actual credentials
+    if not base_url:
+        base_url = "https://your-jira-instance.com/rest/api/2/"
+    
+    if not token:
+        token = "your-api-token-here"
+    
+    if not base_url or base_url == "https://your-jira-instance.com/rest/api/2/":
+        raise ValueError(
+            "JIRA_BASE_URL is not configured.\n"
+            "Please set it in environment variable or edit configs/jira.py\n"
+            "Example: export JIRA_BASE_URL='https://your-domain.atlassian.net/rest/api/2/'"
+        )
+    
+    if not token or token == "your-api-token-here":
+        raise ValueError(
+            "JIRA_TOKEN is not configured.\n"
+            "Please set it in environment variable or edit configs/jira.py\n"
+            "Example: export JIRA_TOKEN='your-api-token'"
+        )
+    
+    # Configure custom fields - replace with your actual field IDs
+    custom_fields = CustomFieldsConfig(
+        knowledge="customfield_XXXXX",           # Replace with your knowledge field ID
+        assigned_area="customfield_XXXXX",       # Replace with your assigned area field ID
+        incident_content="customfield_XXXXX",    # Replace with your incident content field ID
+        temporary_response="customfield_XXXXX",  # Replace with your temporary response field ID
+        permanent_response="customfield_XXXXX",  # Replace with your permanent response field ID
+        impact_scope="customfield_XXXXX"         # Replace with your impact scope field ID
+    )
+    
+    config = JiraConfig(
+        base_url=base_url,
+        token=token,
+        username=os.getenv('JIRA_USERNAME'),
+        default_project=os.getenv('JIRA_DEFAULT_PROJECT'),
+        max_results=int(os.getenv('JIRA_MAX_RESULTS', '50')),
+        timeout=int(os.getenv('JIRA_TIMEOUT', '30')),
+        debug=os.getenv('JIRA_DEBUG', 'false').lower() == 'true',
+        custom_fields=custom_fields
+    )
+    
+    return config
+
+
+def validate_config(config: JiraConfig) -> bool:
+    """
+    Validate JIRA configuration
+    
+    Args:
+        config: Configuration to validate
+        
+    Returns:
+        bool: True if valid, raises ValueError otherwise
+        
+    Raises:
+        ValueError: If configuration is invalid
+    """
+    if not config.base_url:
+        raise ValueError("base_url is required")
+    
+    if not config.token:
+        raise ValueError("token is required")
+    
+    if not config.base_url.startswith(('http://', 'https://')):
+        raise ValueError("base_url must start with http:// or https://")
+    
+    if config.max_results < 1 or config.max_results > 1000:
+        raise ValueError("max_results must be between 1 and 1000")
+    
+    if config.timeout < 1:
+        raise ValueError("timeout must be at least 1 second")
+    
+    return True
+
+
+# Example usage for testing
+if __name__ == "__main__":
+    try:
+        config = get_jira_config()
+        validate_config(config)
+        print(f"✅ JIRA configuration loaded successfully")
+        print(f"   Base URL: {config.base_url}")
+        print(f"   Username: {config.username or 'Not set'}")
+        print(f"   Default Project: {config.default_project or 'Not set'}")
+        print(f"   Max Results: {config.max_results}")
+        print(f"   Timeout: {config.timeout}s")
+        print(f"   Debug Mode: {config.debug}")
+    except ValueError as e:
+        print(f"❌ Configuration Error: {e}")

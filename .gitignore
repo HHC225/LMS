@@ -1,0 +1,127 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Configuration files with actual credentials
+configs/slack.py
+configs/jira.py
+configs/confluence.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+log/
+
+# ChromaDB Vector Database (old location - deprecated)
+chroma_db/
+*.chroma
+
+# Output directory - All tool-generated files
+output/
+*.md
+!README.md
+!docs/*.md
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre
+.pyre/
+
+# pytype
+.pytype/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Project specific - Don't track backup files
+backup/
+bk/
+
+# Tests directory - Don't track test files and test data
+tests/
+test_*.py
+*_test.py
+
+# Admin/Deployment scripts (Admin only)
+setup_git.sh
+deploy.sh
+admin_*.sh
+setup_*.sh
+ADMIN_*.md
+DEPLOYMENT_*.md
+
+# Local configuration
+config.local.py
+settings.local.py
+*.local.json
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+bk/
+
+memo.md
+rule.md
