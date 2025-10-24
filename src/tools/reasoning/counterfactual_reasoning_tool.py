@@ -115,14 +115,8 @@ class CounterfactualInitializeTool(ReasoningTool):
             "problem": problem,
             "md_file": str(md_filepath),
             "current_phase": "initialized",
-            "next_action": "call counterfactual_phase1 to begin Phase 1: Actual State Analysis",
-            "workflow": {
-                "phase1": "Actual State Analysis - Understand current state and causal relationships",
-                "phase2": "Counterfactual Scenarios - Create 4 types and select 1 to analyze",
-                "phase3": "Reasoning Process (5 Steps) - Deep analysis for selected scenario type",
-                "phase4": "Comparison & Insights - Compare and extract insights"
-            },
-            "message": "Counterfactual Reasoning session initialized. Markdown file created. Start with Phase 1 to analyze the actual state."
+            "next_action": "call counterfactual_phase1",
+            "message": f"✅ Session initialized. Next: counterfactual_phase1 with analysis (current_state, causal_chain)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -226,8 +220,8 @@ class CounterfactualPhase1Tool(ReasoningTool):
             "status": "phase1_complete",
             "session_id": session_id,
             "md_file": session["md_filepath"],
-            "next_action": "call counterfactual_phase2 to generate 4 counterfactual scenarios",
-            "message": "✅ Phase 1 Complete: Actual state analyzed.\n\nMarkdown file updated with Phase 1 results.\n\n🔄 Next: Phase 2 - Generate 4 counterfactual scenarios and select ONE type for analysis."
+            "next_action": "call counterfactual_phase2",
+            "message": "✅ Phase 1 complete. Next: counterfactual_phase2 with 4 scenarios (diagnostic, predictive, preventive, optimization)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -390,46 +384,13 @@ class CounterfactualPhase2Tool(ReasoningTool):
         
         await self.log_execution(ctx, f"Completed Phase 2 for session {session_id}, selected type: {selected_type}")
         
-        type_names = {
-            "diagnostic": "Diagnostic (Root Cause Identification)",
-            "predictive": "Predictive (Future Prediction)",
-            "preventive": "Preventive (Risk Prevention)",
-            "optimization": "Optimization (Improvement Exploration)"
-        }
-        
         return json.dumps({
             "status": "phase2_complete",
             "session_id": session_id,
             "selected_type": selected_type,
             "md_file": session["md_filepath"],
             "next_action": "call_counterfactual_phase3_step1",
-            "message": f"""✅ Phase 2 Complete - 4 Scenarios Generated, Type Selected
-
-**Selected for Analysis:** {type_names[selected_type]}
-
-Markdown file updated with all scenarios and selected type.
-
----
-
-🔄 **Phase 3: Deep Reasoning Analysis (5 Steps)**
-
-**Step 1/5: Apply 3 Core Principles**
-
-Apply these principles to the SELECTED scenario:
-
-1. **Minimal Change**: Alter only a small number of conditions
-2. **Causal Consistency**: Maintain logical causal connections  
-3. **Proximity**: Keep the scenario close to the actual situation
-
-Call counterfactual_phase3_step1 with:
-{{
-    "session_id": "{session_id}",
-    "principles_applied": {{
-        "minimal_change": "Explain what minimal changes were made...",
-        "causal_consistency": "Explain how causal consistency is maintained...",
-        "proximity": "Explain how scenario stays close to actual..."
-    }}
-}}"""
+            "message": f"✅ Phase 2 complete. Selected: {selected_type}. Next: counterfactual_phase3_step1 with principles_applied (dict: minimal_change, causal_consistency, proximity)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -542,23 +503,7 @@ class CounterfactualPhase3Step1Tool(ReasoningTool):
             "current_step": 1,
             "total_steps": 5,
             "next_action": "call counterfactual_phase3_step2",
-            "message": f"""✅ Phase 3 Step 1 Complete - Principles Applied
-
-📋 **Progress:** Step 1/5 completed
-Markdown file updated.
-
-🔄 **Next Step:** Phase 3 Step 2 - Direct Impact Analysis (Level 1)
-
-**Instructions:**
-Analyze the DIRECT and IMMEDIATE impacts of the selected scenario.
-Focus on first-order effects that happen immediately when conditions change.
-
-⚠️ **IMPORTANT:** Use parameter name "level1_direct" (string type):
-
-counterfactual_phase3_step2(
-    session_id="{session_id}",
-    level1_direct="Your direct impact analysis here..."
-)"""
+            "message": f"✅ Step 1/5 complete. Next: counterfactual_phase3_step2 with level1_direct (string)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -639,26 +584,7 @@ class CounterfactualPhase3Step2Tool(ReasoningTool):
             "current_step": 2,
             "total_steps": 5,
             "next_action": "call counterfactual_phase3_step3",
-            "message": f"""✅ Phase 3 Step 2 Complete - Direct Impact Analyzed
-
-📋 **Progress:** Step 2/5 completed
-Markdown file updated.
-
-🔄 **Next Step:** Phase 3 Step 3 - Ripple Effects Analysis (Level 2)
-
-**Instructions:**
-Analyze RIPPLE EFFECTS (Level 2):
-- Secondary consequences that cascade from direct impacts
-- How changes spread to related systems
-- Interconnected effects
-- Chain reactions
-
-⚠️ **IMPORTANT:** Use parameter name "level2_ripple" (string type):
-
-counterfactual_phase3_step3(
-    session_id="{session_id}",
-    level2_ripple="Ripple effects analysis..."
-)"""
+            "message": f"✅ Step 2/5 complete. Next: counterfactual_phase3_step3 with level2_ripple (string)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -747,32 +673,7 @@ class CounterfactualPhase3Step3Tool(ReasoningTool):
             "current_step": 3,
             "total_steps": 5,
             "next_action": "call counterfactual_phase3_step4",
-            "message": f"""✅ Phase 3 Step 3 Complete - Ripple Effects Analyzed
-
-📋 **Progress:** Step 3/5 completed
-Markdown file updated.
-
-🔄 **Next Step:** Phase 3 Step 4 - Multidimensional Analysis (Level 3)
-
-**Instructions:**
-Analyze impacts across 4 dimensions:
-
-1. **Technical:** System architecture, code, infrastructure changes
-2. **Organizational:** Team structure, processes, workflows
-3. **Cultural:** Team dynamics, communication, decision-making
-4. **External:** Customer impact, market, partnerships
-
-⚠️ **IMPORTANT:** Call counterfactual_phase3_step4 (NOT step3!) with parameter name "level3_multidimensional":
-
-counterfactual_phase3_step4(
-    session_id="{session_id}",
-    level3_multidimensional={{
-        "technical": "Technical dimension analysis...",
-        "organizational": "Organizational dimension analysis...",
-        "cultural": "Cultural dimension analysis...",
-        "external": "External dimension analysis..."
-    }}
-)"""
+            "message": f"✅ Step 3/5 complete. Next: counterfactual_phase3_step4 with level3_multidimensional (dict: technical, organizational, cultural, external)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -873,44 +774,7 @@ class CounterfactualPhase3Step4Tool(ReasoningTool):
             "current_step": 4,
             "total_steps": 5,
             "next_action": "call counterfactual_phase3_step5",
-            "message": f"""✅ Phase 3 Step 4 Complete - Multidimensional Analysis Done
-
-📋 **Progress:** Step 4/5 completed
-Markdown file updated.
-
-🔄 **Next Step:** Phase 3 Step 5 (FINAL) - Long-term Evolution & Outcome Scenarios
-
-**Instructions:**
-Analyze long-term evolution and generate outcome scenarios:
-
-**Long-term Evolution:**
-- **Timeline:** 3-6-12 month projection
-- **Sustained Benefits:** What advantages persist long-term?
-- **New Challenges:** What problems emerge over time?
-- **Evolution:** How does the situation transform?
-
-**Outcome Scenarios:**
-Project 3 possible futures:
-1. **Best Case:** Everything goes optimally
-2. **Worst Case:** Problems compound negatively
-3. **Most Likely:** Realistic balanced projection
-
-⚠️ **IMPORTANT:** Call counterfactual_phase3_step5 (step5!) with two dict parameters:
-
-counterfactual_phase3_step5(
-    session_id="{session_id}",
-    level4_longterm={{
-        "timeline": "Timeline projection...",
-        "sustained_benefits": "Long-term benefits...",
-        "new_challenges": "Emerging challenges...",
-        "evolution": "How situation evolves..."
-    }},
-    outcome_scenarios={{
-        "best_case": "Optimal outcome...",
-        "worst_case": "Negative outcome...",
-        "most_likely": "Realistic outcome..."
-    }}
-)"""
+            "message": f"✅ Step 4/5 complete. Next: counterfactual_phase3_step5 with level4_longterm (timeline, sustained_benefits, new_challenges, evolution) and outcome_scenarios (best_case, worst_case, most_likely)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -1046,48 +910,7 @@ class CounterfactualPhase3Step5Tool(ReasoningTool):
             "current_step": 5,
             "total_steps": 5,
             "next_action": "call counterfactual_phase4",
-            "message": f"""✅ Phase 3 Complete (All 5 Steps Done)
-
-📋 **All Steps Completed**
-Markdown file updated.
-
-🔄 **Next: Phase 4 - Comparative Analysis**
-
-For the selected type ({selected_type}), provide comparative analysis:
-
-1. **Actual vs Counterfactual Comparison**
-2. **Key Insights**
-3. **Action Recommendations**
-4. **Final Summary**
-
-Call counterfactual_phase4 with:
-{{
-    "session_id": "{session_id}",
-    "comparative_analysis": {{
-        "actual_vs_counterfactual": {{
-            "what_differs": "...",
-            "why_differs": "...",
-            "magnitude_importance": "..."
-        }},
-        "key_insights": {{
-            "critical_findings": [...],
-            "causal_factors": [...],
-            "improvement_opportunities": [...]
-        }},
-        "action_recommendations": {{
-            "immediate_actions": [...],
-            "short_term_plans": [...],
-            "long_term_initiatives": [...],
-            "monitoring_metrics": [...]
-        }},
-        "final_summary": {{
-            "key_takeaway": "...",
-            "expected_impact": "...",
-            "implementation_timeline": "...",
-            "next_steps": [...]
-        }}
-    }}
-}}"""
+            "message": f"✅ Phase 3 complete (5/5). Next: counterfactual_phase4 with comparative_analysis (actual_vs_counterfactual, key_insights, action_recommendations, final_summary)"
         }, indent=2, ensure_ascii=False)
 
 
@@ -1490,33 +1313,8 @@ class CounterfactualPhase4Tool(ReasoningTool):
                 "next_type": next_type,
                 "next_type_name": type_names[next_type],
                 "md_file": session["md_filepath"],
-                "next_action": "call counterfactual_phase2 (without selected_type parameter)",
-                "message": f"""✅ Phase 4 Complete for {type_names.get(selected_type, selected_type)}!
-
-� **Progress:** {len(analyzed_types)}/4 types analyzed
-📄 **Report:** {session['md_filepath']}
-
----
-
-🔄 **Automatic Progression to Next Type**
-
-**Next Type:** {type_names[next_type]}
-
-The system will automatically select the next type in sequence.
-Simply call counterfactual_phase2 again (scenarios will be reused from first analysis).
-
-Call counterfactual_phase2 with the same scenarios:
-{{
-    "session_id": "{session_id}",
-    "scenarios": {{
-        "diagnostic": {{...}},
-        "predictive": {{...}},
-        "preventive": {{...}},
-        "optimization": {{...}}
-    }}
-}}
-
-The system will automatically select "{next_type}" for analysis."""
+                "next_action": "call counterfactual_phase2",
+                "message": f"✅ Phase 4 complete ({len(analyzed_types)}/4). Next: {next_type}. Call counterfactual_phase2 with same scenarios"
             }, indent=2, ensure_ascii=False)
         else:
             # All types analyzed - complete
@@ -1526,15 +1324,7 @@ The system will automatically select "{next_type}" for analysis."""
                 "analyzed_types": [type_names.get(t, t) for t in analyzed_types],
                 "analyzed_count": len(analyzed_types),
                 "md_file": session["md_filepath"],
-                "message": f"""✅ All Counterfactual Analysis Complete! 🎉
-
-📊 **All 4 types analyzed:**
-{self._format_list([type_names.get(t, t) for t in analyzed_types])}
-
-📄 **Complete Report:** {session['md_filepath']}
-
-The comprehensive counterfactual reasoning analysis has been saved to the markdown file.
-You can now review all scenarios and their comparative analyses."""
+                "message": f"✅ All 4 types complete! Report: {session['md_filepath']}"
             }, indent=2, ensure_ascii=False)
     
     def _format_list(self, items: list) -> str:
