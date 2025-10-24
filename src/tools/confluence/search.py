@@ -147,13 +147,13 @@ class SearchToolManagement:
                         page_info["body"] = {}
                         
                         # Storage format (HTML)
-                        if "storage" in page["body"]:
-                            storage_value = page["body"]["storage"].get("value", "")
+                        if "storage" in page["body"] and "value" in page["body"]["storage"]:
+                            storage_value = page["body"]["storage"]["value"]
                             page_info["body"]["storage_preview"] = self._strip_html(storage_value)[:300]
                         
                         # View format (rendered HTML)
-                        if "view" in page["body"]:
-                            view_value = page["body"]["view"].get("value", "")
+                        if "view" in page["body"] and "value" in page["body"]["view"]:
+                            view_value = page["body"]["view"]["value"]
                             page_info["body"]["view_preview"] = self._strip_html(view_value)[:300]
                     
                     # Add ancestors if expanded

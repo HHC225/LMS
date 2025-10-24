@@ -116,8 +116,8 @@ class SpacesToolManagement:
                     # Add description if expanded
                     if "description" in space and space["description"]:
                         desc_plain = space["description"].get("plain", {})
-                        if desc_plain:
-                            space_info["description"] = desc_plain.get("value", "")
+                        if desc_plain and "value" in desc_plain:
+                            space_info["description"] = desc_plain["value"]
                     
                     spaces.append(space_info)
                 
@@ -215,8 +215,8 @@ class SpacesToolManagement:
                 # Add description if expanded
                 if "description" in space and space["description"]:
                     desc_plain = space["description"].get("plain", {})
-                    if desc_plain:
-                        space_info["description"] = desc_plain.get("value", "")
+                    if desc_plain and "value" in desc_plain:
+                        space_info["description"] = desc_plain["value"]
                 
                 return {
                     "success": True,

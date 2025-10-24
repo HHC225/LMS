@@ -241,13 +241,21 @@ class PagesToolManagement:
                 }
                 
                 # Add body if expanded
-                if "body" in expand and "body" in data:
+                # Check for body.storage or body.view in expand list
+                body_expanded = any(exp.startswith("body.") for exp in expand)
+                if body_expanded and "body" in data:
                     body_data = data["body"]
                     result["body"] = {}
-                    if "storage" in body_data:
-                        result["body"]["storage"] = body_data["storage"].get("value")
-                    if "view" in body_data:
-                        result["body"]["view"] = body_data["view"].get("value")
+                    
+                    # Add storage body if available
+                    if "storage" in body_data and "value" in body_data["storage"]:
+                        result["body"]["storage"] = body_data["storage"]["value"]
+                        result["body"]["storage_representation"] = body_data["storage"].get("representation", "storage")
+                    
+                    # Add view body if available
+                    if "view" in body_data and "value" in body_data["view"]:
+                        result["body"]["view"] = body_data["view"]["value"]
+                        result["body"]["view_representation"] = body_data["view"].get("representation", "view")
                 
                 # Add ancestors if expanded
                 if "ancestors" in expand and "ancestors" in data:
